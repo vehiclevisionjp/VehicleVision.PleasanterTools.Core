@@ -26,7 +26,7 @@
     <PackageVersion Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
     <PackageVersion Include="FluentMigrator.Runner.SQLite" Version="8.0.1" />
     <PackageVersion Include="FluentMigrator.Runner.SqlServer" Version="8.0.1" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="MySqlConnector" Version="2.6.2" />
