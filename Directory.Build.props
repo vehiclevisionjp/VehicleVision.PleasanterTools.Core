@@ -1,0 +1,60 @@
+<Project>
+  <!--
+    ランタイム・言語は Pleasanter 本体と、これを使う各アプリに揃える。
+    SDK は global.json（10.0.100 / latestFeature）。各アプリの global.json と同じ値に保つこと。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- バージョンの単一情報源。各 .csproj へ個別に書かないこと。
+       セマンティックバージョニング。1.0.0 未満は互換を保証しない。
+       パッケージはすべて同じ版で出す -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Company>PMC Co.,Ltd.</Company>
+    <Authors>VehicleVision</Authors>
+    <Copyright>Copyright (C) PMC Co.,Ltd.</Copyright>
+    <Product>VehicleVision.PleasanterTools.Core</Product>
+    <RepositoryUrl>https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- NuGet の PackageLicenseExpression は LicenseRef-* を含む式を受け付けないため、
+         ライセンスファイルを参照する（デュアルライセンス） -->
+    <PackageLicenseFile>LICENSING.md</PackageLicenseFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- src 配下だけを配布物にする。tests は配布しない -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('$([System.IO.Path]::DirectorySeparatorChar)src$([System.IO.Path]::DirectorySeparatorChar)'))">
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSING.md" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
+
+  <!--
+    Pleasanter 本体（GNU AGPL v3）はコピー・流用・リンク・プロジェクト参照しない。
+    本製品はデュアルライセンス（AGPL-3.0-or-later OR 商用）で提供する。
+    依存 OSS は寛容ライセンス（MIT / BSD 系 / Apache-2.0）に限定する。
+    詳細は LICENSING.md。
+  -->
+</Project>

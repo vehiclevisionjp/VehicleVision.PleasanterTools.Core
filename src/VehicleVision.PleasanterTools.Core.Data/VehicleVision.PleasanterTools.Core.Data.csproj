@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Data</PackageId>
+    <Description>VehicleVision.PleasanterTools 各アプリ共通の DB 基盤（接続・方言差・起動時マイグレーションと排他）。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="FluentMigrator" />
+    <PackageReference Include="FluentMigrator.Runner" />
+    <PackageReference Include="FluentMigrator.Runner.MySql" />
+    <PackageReference Include="FluentMigrator.Runner.Postgres" />
+    <PackageReference Include="FluentMigrator.Runner.SQLite" />
+    <PackageReference Include="FluentMigrator.Runner.SqlServer" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="MySqlConnector" />
+    <PackageReference Include="Npgsql" />
+    <!-- 推移的依存（Microsoft.Data.SqlClient 経由）の脆弱性の修正版へ固定する -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VehicleVision.PleasanterTools.Core.Data.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,41 @@
+name: release
+
+# タグ vX.Y.Z で GitHub Packages（vehiclevisionjp）へ公開する。
+# 認証は GITHUB_TOKEN（packages: write）。長期の API キーは持たない。
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: タグと VersionPrefix が一致するか
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          prefix=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' Directory.Build.props)
+          case "$tag" in
+            "$prefix"|"$prefix"-*) ;;
+            *) echo "タグ($tag)が VersionPrefix($prefix) と合わない"; exit 1 ;;
+          esac
+
+      - run: dotnet build -c Release
+      - run: dotnet test -c Release --no-build
+      - run: dotnet pack -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o artifacts
+
+      - name: GitHub Packages へ公開
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${{ secrets.GITHUB_TOKEN }}"
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --skip-duplicate

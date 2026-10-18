@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Mail</PackageId>
+    <Description>VehicleVision.PleasanterTools 各アプリ共通のメール送信（SMTP / Amazon SES / Azure Communication Services）。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- メールの送信。MIT。**認証付きリレーの 587 番は Azure でブロックされない**ので、
+         SMTP 1 本で SendGrid・Amazon SES・Azure Communication Services・Microsoft 365 に届く。
+         **送信先ごとの純正 SDK は足さない**（HTTPS の経路だけ、マネージド ID で
+         秘密を保管しないために下の 2 つを持つ） -->
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+    <PackageReference Include="AWSSDK.SimpleEmailV2" />
+    <PackageReference Include="Azure.Communication.Email" />
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- **失敗の切り分けを試験から直に見る。** 「再送する価値があるか」の判定を機械で押さえる -->
+    <InternalsVisibleTo Include="VehicleVision.PleasanterTools.Core.Mail.Tests" />
+  </ItemGroup>
+
+</Project>

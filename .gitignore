@@ -1,0 +1,18 @@
+## build
+bin/
+obj/
+artifacts/
+*.user
+_dist/
+TestResults/
+
+## rider / visual studio
+.vs/
+.idea/
+
+## secrets / local config
+*.env
+nuget.config.local
+
+## 一時成果物（temp/{yyyyMMdd}_{内容}/）
+temp/
