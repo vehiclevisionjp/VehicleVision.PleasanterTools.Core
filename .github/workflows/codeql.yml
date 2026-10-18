@@ -1,0 +1,84 @@
+# CodeQL による静的解析（C#）。
+#
+# **advanced setup（このファイル）で回す。** GitHub 管理の default setup は
+# 実行契機もクエリスイートも制御できず、_documents/ブランチ運用方針.md の
+# 「CI の実行条件」と食い違うため使わない。
+#
+# **Public リポジトリなので、Advanced Security の有効化は要らない。**
+# （Questionnaire は internal のため、前提の確認ジョブを持っている。ここには要らない）
+#
+# ⚠️ **アラート本文（クエリの説明）は日本語にできない。** CodeQL のクエリと解説は
+#    GitHub 提供のクエリパックに英語で埋め込まれており、こちら側で差し替える口が無い。
+#
+# **必須ステータスチェックにはしない。** 新たに公開された脆弱性で既存コードが
+# 赤くなると、その修正 PR 自体がマージできなくなる。判断材料であって門番ではない
+# （_documents/ブランチ運用方針.md「必須ステータスチェック」）。
+name: CodeQL
+
+on:
+  # **全ブランチへの push で回す。** ci.yml と同じ契機にそろえる。
+  # タグの push では回さない（branches だけを書いた push はタグで発火しない）
+  push:
+    branches:
+      - "**"
+  # **週次でも回す。** コードが変わらなくても、クエリパックの更新で新しい指摘が出ることがある。
+  # 毎週月曜 05:17 JST（日曜 20:17 UTC）
+  schedule:
+    - cron: "17 20 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# **既定は読み取りだけ。** SARIF の送信に要る権限はジョブ側で足す
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  CODEQL_CONFIG_FILE: ./.github/codeql/codeql-config.yml
+
+jobs:
+  analyze-csharp:
+    name: CodeQL 解析（C#）
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: ソースを取得する
+        uses: actions/checkout@v7
+
+      - name: .NET SDK を用意する
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: 依存を復元する
+        # **CodeQL の初期化より前に済ませる。** build-mode: manual では
+        # init と analyze の間のビルドがトレースされる。復元まで巻き込むと
+        # 解析に無関係な処理を追わせることになる
+        run: dotnet restore VehicleVision.PleasanterTools.Core.slnx
+
+      - name: CodeQL を初期化する
+        uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          # 実ビルドをトレースさせた方が精度が高い。autobuild ではなく manual にしたのは、
+          # ソリューションが .slnx で autobuild が拾える保証が無いため
+          build-mode: manual
+          config-file: ${{ env.CODEQL_CONFIG_FILE }}
+
+      - name: ビルドする
+        # Directory.Build.props で TreatWarningsAsErrors=true のため、警告が出た時点で落ちる
+        run: dotnet build VehicleVision.PleasanterTools.Core.slnx --no-restore -c Release
+
+      - name: CodeQL 解析を実行する
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:csharp"

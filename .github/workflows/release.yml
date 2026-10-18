@@ -1,24 +1,47 @@
-name: release
-
 # タグ vX.Y.Z で GitHub Packages（vehiclevisionjp）へ公開する。
+# 手順は _documents/リリース手順書.md。
+#
 # 認証は GITHUB_TOKEN（packages: write）。長期の API キーは持たない。
+# **公開した版は取り消せない。** 検査を通ってから push する。
+name: release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - "v*"
 
 permissions:
   contents: read
   packages: write
 
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
 jobs:
   publish:
+    name: GitHub Packages へ公開
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+        with:
+          # タグのコミットが master に含まれるかを見るため、履歴を取る
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+
+      - name: タグのコミットが master に含まれるか
+        # **master 以外のコミットを公開しない。** master はリリース確定状態を保つブランチ
+        run: |
+          git fetch origin master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error title=master に含まれないコミットです::タグは master の HEAD に打つこと（_documents/リリース手順書.md）"
+            exit 1
+          fi
 
       - name: タグと VersionPrefix が一致するか
         run: |
@@ -26,14 +49,15 @@ jobs:
           prefix=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' Directory.Build.props)
           case "$tag" in
             "$prefix"|"$prefix"-*) ;;
-            *) echo "タグ($tag)が VersionPrefix($prefix) と合わない"; exit 1 ;;
+            *) echo "::error::タグ($tag)が VersionPrefix($prefix) と合わない"; exit 1 ;;
           esac
 
       - run: dotnet build -c Release
       - run: dotnet test -c Release --no-build
       - run: dotnet pack -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o artifacts
 
-      - name: GitHub Packages へ公開
+      - name: GitHub Packages へ公開する
+        # --skip-duplicate: 同じ版の再実行を害のないものにする
         run: >
           dotnet nuget push "artifacts/*.nupkg"
           --api-key "${{ secrets.GITHUB_TOKEN }}"
