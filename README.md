@@ -81,6 +81,16 @@ dotnet test
 - 依存のバージョンは `Directory.Packages.props` が単一情報源（Central Package Management）。
 - ブランチは `develop` から切り、PR の base も `develop` にする。
 
+## ドキュメントと規約
+
+| 文書 | 内容 |
+|---|---|
+| [コア化の方針](_documents/コア化の方針.md) | 何を Core に置くか、アプリ固有の値の渡し方、アプリの採用手順、移行の状況 |
+| [ブランチ運用方針](_documents/ブランチ運用方針.md) | ブランチ・PR・CI・ブランチ保護 |
+| [リリース手順書](_documents/リリース手順書.md) | 版の付け方と公開の手順 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 貢献のしかたと CLA |
+| [.github/copilot-instructions.md](.github/copilot-instructions.md) | 規約の全文（`AGENTS.md` はここから生成） |
+
 ## ライセンス
 
 デュアルライセンス（AGPL-3.0-or-later OR 商用）。[LICENSING.md](LICENSING.md) を参照してください。

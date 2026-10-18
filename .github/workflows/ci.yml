@@ -1,20 +1,41 @@
+# ビルドと単体テスト、SDK 指定の一致検査、規約の同期検査。
+#
+# **ジョブ名（name）を変えないこと。** 必須ステータスチェックはチェック名で照合するため、
+# 改名すると「待ち続けるが永遠に来ない」状態になりマージできなくなる
+# （_documents/ブランチ運用方針.md「CI の実行条件」）。
+#
+# actions/checkout v7 / actions/setup-dotnet v6 は各アプリの ci.yml と同じ版に揃えた（勝手に上げない）。
 name: ci
 
 on:
   push:
-    branches: [develop, master]
+    branches:
+      - "**"
   pull_request:
-    branches: [develop, master]
+    branches:
+      - develop
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
 jobs:
   build-test:
+    name: ビルドと単体テスト
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       - run: dotnet build -c Release
@@ -23,10 +44,13 @@ jobs:
       - run: dotnet pack -c Release --no-build -o artifacts
 
   sdk-consistency:
-    # 各アプリと SDK 指定がずれていないかを見張る（ばらつきの再発防止）
+    # 各アプリと SDK 指定がずれていないかを見張る（ばらつきの再発防止）。
+    # 基準値は各アプリの global.json と同じ（Pleasanter 本体に揃えた値）
+    name: SDK 指定の一致検査
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: global.json が基準と一致するか
         run: |
           expected='{"sdk":{"version":"10.0.100","allowPrerelease":false,"rollForward":"latestFeature"}}'
@@ -35,3 +59,12 @@ jobs:
             echo "global.json が基準（10.0.100 / latestFeature）と違う: $actual"
             exit 1
           fi
+
+  agents-sync:
+    # AGENTS.md は .github/copilot-instructions.md から生成する。手で直されていないかを見る
+    name: 規約の同期検査
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash ./scripts/sync-agents.sh --check
