@@ -5,7 +5,8 @@
 # NuGet/login が OIDC トークンを nuget.org へ渡して、1 時間有効の API キーを受け取る。
 # 前提（管理者の作業。_documents/リリース手順書.md「nuget.org の準備」）:
 #   - nuget.org の Trusted Publishing に、このリポジトリ・このワークフロー（release.yml）のポリシーがあること
-#   - リポジトリの変数 NUGET_USER に、nuget.org のプロフィール名（メールアドレスではない）が入っていること
+#   - 変数 NUGET_ORG_USER（組織の変数。Core へ共有）に、公開用の共用アカウントの nuget.org プロフィール名
+#     （メールアドレスではない）が入っていること
 #
 # **公開した版は取り消せない（nuget.org では削除できず、非推奨にできるだけ）。** 検査を通ってから push する。
 #
@@ -68,10 +69,10 @@ jobs:
 
       - name: NuGet のユーザー名が設定されているか
         env:
-          NUGET_USER: ${{ vars.NUGET_USER }}
+          NUGET_ORG_USER: ${{ vars.NUGET_ORG_USER }}
         run: |
-          if [ -z "$NUGET_USER" ]; then
-            echo "::error title=変数 NUGET_USER が未設定です::リポジトリの変数 NUGET_USER に nuget.org のプロフィール名（メールアドレスではない）を登録すること（_documents/リリース手順書.md）"
+          if [ -z "$NUGET_ORG_USER" ]; then
+            echo "::error title=変数 NUGET_ORG_USER が未設定です::組織の変数 NUGET_ORG_USER（Core へ共有）に、公開用の共用アカウントの nuget.org プロフィール名（メールアドレスではない）を登録すること（_documents/リリース手順書.md）"
             exit 1
           fi
 
@@ -80,7 +81,7 @@ jobs:
         # 公開の認証を扱うので、コミットで固定する
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
-          user: ${{ vars.NUGET_USER }}
+          user: ${{ vars.NUGET_ORG_USER }}
 
       - name: nuget.org へ公開する
         # --skip-duplicate: 同じ版の再実行を害のないものにする
