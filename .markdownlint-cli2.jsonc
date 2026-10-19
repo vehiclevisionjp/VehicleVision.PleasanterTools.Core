@@ -18,5 +18,9 @@
     "MD040": false,
     "MD041": false,
     "MD046": false,
+    // 表の縦線の揃え方（markdownlint 0.40 で追加された規則）。既存の表は揃え方がまちまちなので止める
+    "MD060": false,
   },
+  // AGENTS.md は .github/copilot-instructions.md から scripts/sync-agents.sh で生成する。検査は生成元に対して行う
+  "ignores": ["_reference/**", "AGENTS.md"]
 }
