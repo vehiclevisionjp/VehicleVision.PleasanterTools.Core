@@ -19,3 +19,6 @@ temp/
 
 ## Claude Code の個人設定（共有しない）
 .claude/settings.local.json
+
+## Node.js の依存（markdownlint）
+**/node_modules/
