@@ -1,24 +1,58 @@
+# タグ vX.Y.Z で nuget.org へ公開する。
+# 手順は _documents/リリース手順書.md。
+#
+# 認証は Trusted Publishing（GitHub Actions の OIDC）。**長期の API キーは持たない。**
+# NuGet/login が OIDC トークンを nuget.org へ渡して、1 時間有効の API キーを受け取る。
+# 前提（管理者の作業。_documents/リリース手順書.md「nuget.org の準備」）:
+#   - nuget.org の Trusted Publishing に、このリポジトリ・このワークフロー（release.yml）のポリシーがあること
+#   - 変数 NUGET_ORG_USER（組織の変数。Core へ共有）に、公開用の共用アカウントの nuget.org プロフィール名
+#     （メールアドレスではない）が入っていること
+#
+# **公開した版は取り消せない（nuget.org では削除できず、非推奨にできるだけ）。** 検査を通ってから push する。
+#
+# 参照した一次情報（2026-10-20 参照）
+#   - Trusted Publishing: https://learn.microsoft.com/nuget/nuget-org/trusted-publishing
+#   - NuGet/login v1.2.0: https://github.com/NuGet/login
 name: release
-
-# タグ vX.Y.Z で GitHub Packages（vehiclevisionjp）へ公開する。
-# 認証は GITHUB_TOKEN（packages: write）。長期の API キーは持たない。
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - "v*"
 
 permissions:
   contents: read
-  packages: write
+  # nuget.org へ渡す OIDC トークンを発行するために要る
+  id-token: write
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
 
 jobs:
   publish:
+    name: nuget.org へ公開
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+        with:
+          # タグのコミットが master に含まれるかを見るため、履歴を取る
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+
+      - name: タグのコミットが master に含まれるか
+        # **master 以外のコミットを公開しない。** master はリリース確定状態を保つブランチ
+        run: |
+          git fetch origin master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error title=master に含まれないコミットです::タグは master の HEAD に打つこと（_documents/リリース手順書.md）"
+            exit 1
+          fi
 
       - name: タグと VersionPrefix が一致するか
         run: |
@@ -26,16 +60,33 @@ jobs:
           prefix=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' Directory.Build.props)
           case "$tag" in
             "$prefix"|"$prefix"-*) ;;
-            *) echo "タグ($tag)が VersionPrefix($prefix) と合わない"; exit 1 ;;
+            *) echo "::error::タグ($tag)が VersionPrefix($prefix) と合わない"; exit 1 ;;
           esac
 
       - run: dotnet build -c Release
       - run: dotnet test -c Release --no-build
       - run: dotnet pack -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o artifacts
 
-      - name: GitHub Packages へ公開
+      - name: NuGet のユーザー名が設定されているか
+        env:
+          NUGET_ORG_USER: ${{ vars.NUGET_ORG_USER }}
+        run: |
+          if [ -z "$NUGET_ORG_USER" ]; then
+            echo "::error title=変数 NUGET_ORG_USER が未設定です::組織の変数 NUGET_ORG_USER（Core へ共有）に、公開用の共用アカウントの nuget.org プロフィール名（メールアドレスではない）を登録すること（_documents/リリース手順書.md）"
+            exit 1
+          fi
+
+      - name: nuget.org の API キーを受け取る（OIDC。1 時間有効）
+        id: login
+        # 公開の認証を扱うので、コミットで固定する
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_ORG_USER }}
+
+      - name: nuget.org へ公開する
+        # --skip-duplicate: 同じ版の再実行を害のないものにする
         run: >
           dotnet nuget push "artifacts/*.nupkg"
-          --api-key "${{ secrets.GITHUB_TOKEN }}"
-          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source "https://api.nuget.org/v3/index.json"
           --skip-duplicate

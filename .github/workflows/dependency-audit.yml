@@ -1,0 +1,76 @@
+# 依存（NuGet）に既知の脆弱性が無いかと、NOTICE の整合を検査する。
+#
+# **週次でも回す。** 脆弱性はこちらのコードが変わらなくても増える。push 契機だけだと、
+# 「最後に触った日から一度も検査していない」状態が延々と続く。
+#
+# **脆弱性の検査は必須ステータスチェックにしない。** 新たに公開された脆弱性で赤くなったとき、
+# その修正 PR 自体がマージできなくなる。更新の PR は Dependabot が出す
+# （.github/dependabot.yml）ので、ここは気付くための仕掛けとして扱う。
+# **NOTICE の整合検査だけは必須**（デュアルライセンスの前提を守るため）。
+#
+# **actions/dependency-review-action は使わない。** 依存関係グラフを前提にした action で、
+# 脆弱性の検査は GitHub の機能に依らない `dotnet list package --vulnerable` で見る
+# （PR で入る依存は別の dependency-review.yml が見る）。
+name: 依存の脆弱性検査
+
+on:
+  # ci.yml と同じ契機（全ブランチへの push）。タグの push では回さない
+  push:
+    branches:
+      - "**"
+  # 毎週月曜 09:30 JST（月曜 00:30 UTC）。Dependabot の巡回（月曜 09:00 JST）の直後
+  schedule:
+    - cron: "30 0 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
+jobs:
+  nuget-audit:
+    name: NuGet 依存の脆弱性検査
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: ソースを取得する
+        uses: actions/checkout@v7
+
+      - name: .NET SDK を用意する
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: 脆弱性を検査する
+        # ⚠️ **`dotnet list package --vulnerable` は見つけても終了コード 0 を返す。**
+        #    そのままステップにすると永遠に緑になるため、JSON を読んで落とす
+        #    スクリプトを通す（scripts/nuget-vulnerable-check.sh の冒頭に実測を記録）
+        run: bash ./scripts/nuget-vulnerable-check.sh vulnerable.json
+
+      - name: 検査結果を残す
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: NuGet 脆弱性検査結果
+          path: vulnerable.json
+          if-no-files-found: ignore
+
+  notice-consistency:
+    name: NOTICE と依存の整合検査
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: ソースを取得する
+        uses: actions/checkout@v7
+
+      - name: NOTICE の依存一覧を実物と突き合わせる
+        # **リリース時に気付くのでは遅い。** 依存を足した push の時点で落とす
+        run: bash ./scripts/notice-check.sh

@@ -1,6 +1,7 @@
 # 商用ライセンス（LicenseRef-PMC-Commercial）
 
-対象ソフトウェアは **VehicleVision.PleasanterTools.Questionnaire**
+対象ソフトウェアは **VehicleVision.PleasanterTools.Core**
+（VehicleVision.PleasanterTools の各アプリケーションが共通で組み込んで使う部品）
 
 Copyright (C) PMC Co.,Ltd.
 
@@ -30,8 +31,7 @@ Copyright (C) PMC Co.,Ltd.
 本リポジトリのうち、**当社が著作権を持つ部分**が対象です。次は対象外です。
 
 - サードパーティの OSS（[`NOTICE`](NOTICE) 参照）。各ライセンスに従ってください
-- [`_reference/`](_reference/README.md) 配下（Pleasanter 本体。AGPL v3）。
-  **参照専用であり、本ソフトウェアの一部ではありません**
+- Pleasanter 本体（AGPL v3）。**本リポジトリには含めておらず、本ソフトウェアの一部ではありません**
 
 ## お問い合わせ
 

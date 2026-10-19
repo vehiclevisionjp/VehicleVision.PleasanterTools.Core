@@ -1,0 +1,13 @@
+name: "VehicleVision.PleasanterTools.Core CodeQL 設定"
+
+# **security-extended を使う。** 既定スイート（security）より検出範囲が広い。
+# 品質クエリ（code-quality）は入れない。保守性の指摘まで Security タブへ流すと
+# 「脆弱性の一覧」として読めなくなるため。
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  # ビルド成果物。配布物でもレビュー対象でもない
+  - "**/bin/**"
+  - "**/obj/**"
+  - "artifacts/**"
