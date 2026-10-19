@@ -50,5 +50,5 @@ Copyright (C) PMC Co.,Ltd.
   xunit.runner.visualstudio 4.0.1 / Apache-2.0
   Microsoft.NET.Test.Sdk 18.10.1 / MIT
   coverlet.collector 10.1.0 / MIT
-  Microsoft.Extensions.Configuration 10.0.12 / MIT
+  Microsoft.Extensions.Configuration 10.0.13 / MIT
     （設定の読み取りを試すのに使う）
