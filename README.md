@@ -31,38 +31,20 @@ var migrator = new DatabaseMigrator(
     lockName: "questionnaire-startup-migrations");
 ```
 
-## 配布と参照（GitHub Packages）
+## 配布と参照（nuget.org）
 
-`vehiclevisionjp` の GitHub Packages へ配布します。**Public のリポジトリでも、GitHub Packages の
-NuGet は取得に認証が要ります**（`read:packages` 権限のトークン）。
-
-参照するリポジトリの `nuget.config`:
+nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data`）。
+**認証なしで取得できる**ので、参照するリポジトリは、`PackageReference` を書くだけです
+（`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <add key="vehiclevisionjp" value="https://nuget.pkg.github.com/vehiclevisionjp/index.json" />
-  </packageSources>
-  <packageSourceMapping>
-    <packageSource key="nuget.org">
-      <package pattern="*" />
-    </packageSource>
-    <packageSource key="vehiclevisionjp">
-      <package pattern="VehicleVision.PleasanterTools.Core.*" />
-    </packageSource>
-  </packageSourceMapping>
-</configuration>
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0-preview.2" />
 ```
 
-- **手元:** `dotnet nuget add source` か、ユーザー単位の `nuget.config` に資格情報を置く
-  （リポジトリへコミットしない）。
-- **GitHub Actions:** ジョブの `permissions` に `packages: read` を付け、`GITHUB_TOKEN` を使う。
-  取得する側のリポジトリが、パッケージの設定（Manage Actions access）で許可されている必要がある。
-
-将来 nuget.org へ移す場合は、`release.yml` の公開先を差し替えるだけで済みます
-（`id` を変えないこと）。
+- 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
+  手順は [`_documents/リリース手順書.md`](_documents/リリース手順書.md)
+- **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
+- 0.1.0-preview.1 だけは GitHub Packages にあります（認証が要る）。nuget.org へは preview.2 以降を出します
 
 ## バージョン
 
