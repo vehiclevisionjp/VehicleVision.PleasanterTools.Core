@@ -16,3 +16,6 @@ nuget.config.local
 
 ## 一時成果物（temp/{yyyyMMdd}_{内容}/）
 temp/
+
+## Claude Code の個人設定（共有しない）
+.claude/settings.local.json
