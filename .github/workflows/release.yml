@@ -1,8 +1,17 @@
-# タグ vX.Y.Z で GitHub Packages（vehiclevisionjp）へ公開する。
+# タグ vX.Y.Z で nuget.org へ公開する。
 # 手順は _documents/リリース手順書.md。
 #
-# 認証は GITHUB_TOKEN（packages: write）。長期の API キーは持たない。
-# **公開した版は取り消せない。** 検査を通ってから push する。
+# 認証は Trusted Publishing（GitHub Actions の OIDC）。**長期の API キーは持たない。**
+# NuGet/login が OIDC トークンを nuget.org へ渡して、1 時間有効の API キーを受け取る。
+# 前提（管理者の作業。_documents/リリース手順書.md「nuget.org の準備」）:
+#   - nuget.org の Trusted Publishing に、このリポジトリ・このワークフロー（release.yml）のポリシーがあること
+#   - リポジトリの変数 NUGET_USER に、nuget.org のプロフィール名（メールアドレスではない）が入っていること
+#
+# **公開した版は取り消せない（nuget.org では削除できず、非推奨にできるだけ）。** 検査を通ってから push する。
+#
+# 参照した一次情報（2026-10-20 参照）
+#   - Trusted Publishing: https://learn.microsoft.com/nuget/nuget-org/trusted-publishing
+#   - NuGet/login v1.2.0: https://github.com/NuGet/login
 name: release
 
 on:
@@ -12,7 +21,8 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  # nuget.org へ渡す OIDC トークンを発行するために要る
+  id-token: write
 
 env:
   DOTNET_NOLOGO: "true"
@@ -21,7 +31,7 @@ env:
 
 jobs:
   publish:
-    name: GitHub Packages へ公開
+    name: nuget.org へ公開
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -56,10 +66,26 @@ jobs:
       - run: dotnet test -c Release --no-build
       - run: dotnet pack -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o artifacts
 
-      - name: GitHub Packages へ公開する
+      - name: NuGet のユーザー名が設定されているか
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if [ -z "$NUGET_USER" ]; then
+            echo "::error title=変数 NUGET_USER が未設定です::リポジトリの変数 NUGET_USER に nuget.org のプロフィール名（メールアドレスではない）を登録すること（_documents/リリース手順書.md）"
+            exit 1
+          fi
+
+      - name: nuget.org の API キーを受け取る（OIDC。1 時間有効）
+        id: login
+        # 公開の認証を扱うので、コミットで固定する
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: nuget.org へ公開する
         # --skip-duplicate: 同じ版の再実行を害のないものにする
         run: >
           dotnet nuget push "artifacts/*.nupkg"
-          --api-key "${{ secrets.GITHUB_TOKEN }}"
-          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source "https://api.nuget.org/v3/index.json"
           --skip-duplicate
