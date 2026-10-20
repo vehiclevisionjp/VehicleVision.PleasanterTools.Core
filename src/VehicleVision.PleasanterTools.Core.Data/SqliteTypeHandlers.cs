@@ -1,31 +1,83 @@
 using System.Data;
 using System.Globalization;
+using System.Reflection;
 using Dapper;
 
 namespace VehicleVision.PleasanterTools.Core.Data;
 
 /// <summary>SQLite が文字列・整数で返す値を、Dapper のモデル型へ戻す。</summary>
-internal static class SqliteTypeHandlers
+/// <remarks>
+/// <para>
+/// 登録するのは、<b>列挙型</b>と、<b>名前つきコンストラクタを持つ型（record など）</b>。
+/// これらは、走査したアセンブリの中にあるものだけが対象になる。
+/// </para>
+/// <para>
+/// <b>アプリのモデル型があるアセンブリは、アプリが <see cref="AddModelAssemblies"/> で知らせる。</b>
+/// Core.Data のアセンブリだけを走査すると、アプリのモデルを Dapper が組み立てられない
+/// （<c>A parameterless default constructor or one matching signature … is needed</c>）。
+/// 知らせるのは 1 回でよい（アセンブリの読み込み時に呼ぶ <c>[ModuleInitializer]</c> が向く）。
+/// </para>
+/// <para>
+/// <b>SQLite のときだけ効く。</b> 実際の登録は、SQLite の接続を作るとき（<see cref="DbConnectionFactory"/>）に行う。
+/// ほかの RDBMS の挙動は変えない。
+/// </para>
+/// </remarks>
+public static class SqliteTypeHandlers
 {
     private static readonly object Sync = new();
-    private static bool _registered;
+    private static readonly HashSet<Assembly> KnownAssemblies = [typeof(DatabaseProvider).Assembly];
+    private static readonly HashSet<Assembly> RegisteredAssemblies = [];
+    private static bool _active;
 
+    /// <summary>アプリのモデル型があるアセンブリを知らせる。何度呼んでもよい。</summary>
+    /// <remarks>
+    /// SQLite の登録がすでに済んでいれば、すぐ反映する。まだなら、登録するときに反映する。
+    /// </remarks>
+    public static void AddModelAssemblies(params Assembly[] assemblies)
+    {
+        ArgumentNullException.ThrowIfNull(assemblies);
+
+        lock (Sync)
+        {
+            foreach (var assembly in assemblies)
+            {
+                KnownAssemblies.Add(assembly);
+            }
+
+            if (_active)
+            {
+                RegisterKnown();
+            }
+        }
+    }
+
+    /// <summary>SQLite 用の型の対応表を登録する。<see cref="DbConnectionFactory"/> が呼ぶ。</summary>
     public static void Register()
     {
         lock (Sync)
         {
-            if (_registered)
+            if (!_active)
             {
-                return;
+                SqlMapper.AddTypeHandler(new GuidHandler());
+                SqlMapper.AddTypeHandler(new DateTimeHandler());
+                SqlMapper.AddTypeHandler(new BooleanHandler());
+                _active = true;
             }
 
-            SqlMapper.AddTypeHandler(new GuidHandler());
-            SqlMapper.AddTypeHandler(new DateTimeHandler());
-            SqlMapper.AddTypeHandler(new BooleanHandler());
+            RegisterKnown();
+        }
+    }
 
-            foreach (var enumType in typeof(DatabaseProvider).Assembly
-                .GetTypes()
-                .Where(type => type.IsEnum))
+    private static void RegisterKnown()
+    {
+        foreach (var assembly in KnownAssemblies.ToArray())
+        {
+            if (!RegisteredAssemblies.Add(assembly))
+            {
+                continue;
+            }
+
+            foreach (var enumType in assembly.GetTypes().Where(type => type.IsEnum))
             {
                 var handlerType = typeof(EnumHandler<>).MakeGenericType(enumType);
                 SqlMapper.AddTypeHandler(
@@ -33,14 +85,10 @@ internal static class SqliteTypeHandlers
                     (SqlMapper.ITypeHandler)Activator.CreateInstance(handlerType)!);
             }
 
-            foreach (var type in typeof(DatabaseProvider).Assembly
-                .GetTypes()
-                .Where(HasNamedConstructor))
+            foreach (var type in assembly.GetTypes().Where(HasNamedConstructor))
             {
                 SqlMapper.SetTypeMap(type, new ConvertingConstructorTypeMap(type));
             }
-
-            _registered = true;
         }
     }
 
