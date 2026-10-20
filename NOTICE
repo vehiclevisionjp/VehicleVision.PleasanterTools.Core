@@ -39,7 +39,7 @@ Copyright (C) PMC Co.,Ltd.
   MySqlConnector 2.6.2 / MIT / https://www.nuget.org/packages/MySqlConnector
   Microsoft.Extensions.DependencyInjection 10.0.12 / MIT
   Microsoft.Extensions.Configuration.Abstractions 10.0.13 / MIT
-  Microsoft.Extensions.Logging.Abstractions 10.0.12 / MIT
+  Microsoft.Extensions.Logging.Abstractions 10.0.13 / MIT
   MailKit 4.18.1 / MIT / https://github.com/jstedfast/MailKit
     （メールの送信。MimeKit と BouncyCastle.Cryptography（いずれも MIT）を推移的に伴う）
   System.Security.Cryptography.Pkcs 10.0.13 / MIT / https://www.nuget.org/packages/System.Security.Cryptography.Pkcs
