@@ -183,6 +183,12 @@ public sealed class DatabaseMigrator
         }
     }
 
+    /// <summary>走査するアセンブリ。アプリのマイグレーションと、Core.Data の共有マイグレーション。</summary>
+    private Assembly[] ScannedAssemblies =>
+        migrationsAssembly == typeof(DatabaseMigrator).Assembly
+            ? [migrationsAssembly]
+            : [migrationsAssembly, typeof(DatabaseMigrator).Assembly];
+
     private ServiceProvider BuildServices(DatabaseProvider provider, string connectionString) =>
         new ServiceCollection()
             .AddFluentMigratorCore()
@@ -199,7 +205,8 @@ public sealed class DatabaseMigrator
 
                 configured
                     .WithGlobalConnectionString(connectionString)
-                    .ScanIn(migrationsAssembly).For.Migrations();
+                    // アプリの分に加えて、Core.Data 自身の共有マイグレーション（M10001〜、Core_ 接頭辞）も当てる
+                    .ScanIn(ScannedAssemblies).For.Migrations();
             })
             .BuildServiceProvider(validateScopes: false);
 }
