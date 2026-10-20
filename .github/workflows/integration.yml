@@ -9,7 +9,7 @@
 #
 # 書き方は AtomFeed の integration.yml に倣った。
 #   - サービスコンテナ: https://docs.github.com/actions/using-containerized-services/about-service-containers
-name: 4 RDBMS 結合テスト
+name: Integration Tests
 
 on:
   push:
@@ -37,7 +37,7 @@ env:
 
 jobs:
   integration:
-    name: 4 RDBMS 結合テスト
+    name: integration
     runs-on: ubuntu-latest
 
     services:
