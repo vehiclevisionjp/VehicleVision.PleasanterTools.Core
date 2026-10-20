@@ -11,7 +11,12 @@ using Npgsql;
 namespace VehicleVision.PleasanterTools.Core.Data;
 
 /// <summary>起動時マイグレーションを 1 インスタンスだけに絞る。</summary>
-internal sealed class DatabaseMigrationLock : IAsyncDisposable
+/// <remarks>
+/// 通常は <see cref="DatabaseMigrator"/> が使う。RDBMS ごとの名前付きロックの動きを直接試すためなど、
+/// 排他だけが要るときに使えるよう公開している。
+/// **ロック名はアプリごとに別にする**（同じ DB サーバを複数のアプリが使うとき、名前が同じだと別のアプリを待たせる）。
+/// </remarks>
+public sealed class DatabaseMigrationLock : IAsyncDisposable
 {
     private static readonly TimeSpan RetryInterval = TimeSpan.FromMilliseconds(100);
 

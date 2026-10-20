@@ -3,6 +3,7 @@
   <PropertyGroup>
     <PackageId>VehicleVision.PleasanterTools.Core.Mail</PackageId>
     <Description>VehicleVision.PleasanterTools 各アプリ共通のメール送信（SMTP / Amazon SES / Azure Communication Services）。</Description>
+    <PackageTags>pleasanter;vehiclevision;mail;smtp;amazon-ses;azure-communication-services;mailkit</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
