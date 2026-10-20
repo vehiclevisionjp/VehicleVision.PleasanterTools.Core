@@ -56,7 +56,10 @@ public sealed record AuditLogQuery
     /// <summary>この操作だけ（完全一致）。</summary>
     public string? Action { get; init; }
 
-    /// <summary>操作の名前に含まれる文字（部分一致）。</summary>
+    /// <summary>ログイン ID に含まれる文字（部分一致。大文字小文字を区別しない）。</summary>
+    public string? ActorLoginContains { get; init; }
+
+    /// <summary>操作の名前に含まれる文字（部分一致。大文字小文字を区別しない）。</summary>
     public string? ActionContains { get; init; }
 
     /// <summary>失敗だけ。</summary>
@@ -168,10 +171,17 @@ public sealed class AuditLogStore(IDbConnectionFactory connections) : IAuditLogS
             parameters.Add("Action", query.Action);
         }
 
+        // **大文字小文字を区別しない**（PostgreSQL の LIKE は区別するので、両辺を小文字にして揃える）
+        if (!string.IsNullOrWhiteSpace(query.ActorLoginContains))
+        {
+            conditions.Add($"LOWER([ActorLoginId]) LIKE @ActorLoginLike ESCAPE '{SqlDialect.LikeEscape}'");
+            parameters.Add("ActorLoginLike", $"%{SqlDialect.EscapeLike(query.ActorLoginContains.Trim().ToLowerInvariant())}%");
+        }
+
         if (!string.IsNullOrWhiteSpace(query.ActionContains))
         {
-            conditions.Add($"[Action] LIKE @ActionLike ESCAPE '{SqlDialect.LikeEscape}'");
-            parameters.Add("ActionLike", $"%{SqlDialect.EscapeLike(query.ActionContains.Trim())}%");
+            conditions.Add($"LOWER([Action]) LIKE @ActionLike ESCAPE '{SqlDialect.LikeEscape}'");
+            parameters.Add("ActionLike", $"%{SqlDialect.EscapeLike(query.ActionContains.Trim().ToLowerInvariant())}%");
         }
 
         if (query.FailedOnly)

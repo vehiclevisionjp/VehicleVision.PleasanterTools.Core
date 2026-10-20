@@ -74,6 +74,19 @@ public sealed class AuditLogStoreTests : DatabaseTestBase
 
     [Theory]
     [EnabledDatabases]
+    public async Task 部分一致は_大文字小文字を区別しない(DatabaseProvider provider)
+    {
+        var store = StoreFor(provider);
+        await store.WriteAsync(new AuditEntry(Start, "Auth.Login.Failure", false, ActorKey: actor, ActorLoginId: "Taro.Yamada"));
+        await store.WriteAsync(new AuditEntry(Start.AddMinutes(1), "other", true, ActorKey: actor, ActorLoginId: "hanako"));
+
+        Assert.Equal(["Auth.Login.Failure"], (await store.ListAsync(Mine() with { ActionContains = "LOGIN" })).Select(e => e.Action));
+        Assert.Equal(["Auth.Login.Failure"], (await store.ListAsync(Mine() with { ActorLoginContains = "yamada" })).Select(e => e.Action));
+        Assert.Empty(await store.ListAsync(Mine() with { ActorLoginContains = "%" }));
+    }
+
+    [Theory]
+    [EnabledDatabases]
     public async Task 期間で絞れる(DatabaseProvider provider)
     {
         var store = StoreFor(provider);
