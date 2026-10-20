@@ -4,6 +4,7 @@
     <Project Path="src/VehicleVision.PleasanterTools.Core.Mail/VehicleVision.PleasanterTools.Core.Mail.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/VehicleVision.PleasanterTools.Core.Data.Tests/VehicleVision.PleasanterTools.Core.Data.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Mail.Tests/VehicleVision.PleasanterTools.Core.Mail.Tests.csproj" />
   </Folder>
 </Solution>
