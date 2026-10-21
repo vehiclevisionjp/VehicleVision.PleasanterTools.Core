@@ -2,9 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/VehicleVision.PleasanterTools.Core.Data/VehicleVision.PleasanterTools.Core.Data.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Mail/VehicleVision.PleasanterTools.Core.Mail.csproj" />
+    <Project Path="src/VehicleVision.PleasanterTools.Core.Web/VehicleVision.PleasanterTools.Core.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Data.Tests/VehicleVision.PleasanterTools.Core.Data.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Mail.Tests/VehicleVision.PleasanterTools.Core.Mail.Tests.csproj" />
+    <Project Path="tests/VehicleVision.PleasanterTools.Core.Web.Tests/VehicleVision.PleasanterTools.Core.Web.Tests.csproj" />
   </Folder>
 </Solution>

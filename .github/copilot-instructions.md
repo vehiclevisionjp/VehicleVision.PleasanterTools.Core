@@ -25,6 +25,8 @@
    （[`_documents/コア化の方針.md`](../_documents/コア化の方針.md)）
 9. **公開 API を変える PR は、各アプリの追随を Issue に残すこと。** Core を直しても、
    アプリが古い版を参照している限り、**ばらつきは直っていない**
+10. **`{}` を省略しない。** `if` / `else` / `for` / `foreach` / `while` / `using` / `lock` などの本文も、
+   1 行で済む場合も同じ。C# は `.editorconfig` とビルドで、TypeScript・Svelte は ESLint の `curly` で強制する。
 
 <!-- AGENT-RULES:END -->
 
@@ -38,6 +40,7 @@ Questionnaire ほか）が共通で使う、コア部分の実装。** アプリ
 |---|---|
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・接続の暗号化検査・起動時マイグレーションと排他 |
+| `VehicleVision.PleasanterTools.Core.Web` | Web 層の部品（Pleasanter のログインで本人を確かめる問い合わせ） |
 
 - 言語・ランタイムは **Pleasanter 本体と各アプリに揃える**。`global.json` は各アプリと同じ値に保つ
   （`ci.yml` が一致を検査する）
