@@ -160,6 +160,16 @@ public interface IAdminUserStore
 
     /// <summary>未使用の復旧コードの本数。</summary>
     Task<int> CountRecoveryCodesAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 未使用の復旧コードのハッシュの一覧。塩つきのハッシュは入力から同じ値を作れないので、
+    /// 呼び出し側が 1 件ずつ照合し、一致したハッシュで <see cref="TryUseRecoveryCodeAsync"/> を呼ぶ。
+    /// </summary>
+    Task<IReadOnlyList<string>> ListUnusedRecoveryCodeHashesAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>表示言語を変える。存在しない ID は <see cref="AdminChangeResult.NotFound"/>。</summary>
+    /// <exception cref="ArgumentException"><paramref name="language"/> が空、または 16 文字を超える。</exception>
+    Task<AdminChangeResult> SetLanguageAsync(Guid id, string language, CancellationToken cancellationToken = default);
 }
 
 /// <summary>管理者を RDBMS へ保管する。表は <c>Core_AdminUsers</c> ほか（M10006）。</summary>
@@ -516,6 +526,41 @@ public sealed class AdminUserStore(
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             Sql("SELECT COUNT(*) FROM [Core_AdminRecoveryCodes] WHERE [UserId] = @Id AND [UsedAt] IS NULL"),
             new { Id = id }, cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<string>> ListUnusedRecoveryCodeHashesAsync(
+        Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = connections.Create();
+        var hashes = await connection.QueryAsync<string>(new CommandDefinition(
+            Sql("SELECT [CodeHash] FROM [Core_AdminRecoveryCodes] WHERE [UserId] = @Id AND [UsedAt] IS NULL"),
+            new { Id = id }, cancellationToken: cancellationToken)).ConfigureAwait(false);
+        return hashes.ToList();
+    }
+
+    public async Task<AdminChangeResult> SetLanguageAsync(
+        Guid id, string language, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+        if (language.Length > 16)
+        {
+            throw new ArgumentException("言語は 16 文字以内にする。", nameof(language));
+        }
+
+        await using var connection = connections.Create();
+        var updated = await connection.ExecuteAsync(new CommandDefinition(
+            Sql("UPDATE [Core_AdminUsers] SET [Language] = @Language WHERE [Id] = @Id"),
+            new { Id = id, Language = language }, cancellationToken: cancellationToken)).ConfigureAwait(false);
+        if (updated > 0)
+        {
+            return AdminChangeResult.Updated;
+        }
+
+        // 同じ値への更新は、MySQL では 0 件と数えられる。存在するかで分ける
+        var exists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            Sql("SELECT COUNT(*) FROM [Core_AdminUsers] WHERE [Id] = @Id"), new { Id = id },
+            cancellationToken: cancellationToken)).ConfigureAwait(false) > 0;
+        return exists ? AdminChangeResult.Updated : AdminChangeResult.NotFound;
     }
 
     private sealed class UserRow
