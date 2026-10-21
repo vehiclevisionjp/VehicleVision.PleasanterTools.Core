@@ -167,8 +167,8 @@ public interface IAdminUserStore
     /// </summary>
     Task<IReadOnlyList<string>> ListUnusedRecoveryCodeHashesAsync(Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>表示言語を変える。存在しない ID は <see cref="AdminChangeResult.NotFound"/>。</summary>
-    /// <exception cref="ArgumentException"><paramref name="language"/> が空、または 16 文字を超える。</exception>
+    /// <summary>表示言語を変える。<b>空文字は「選んでいない」</b>（ブラウザの言語に従う）。存在しない ID は <see cref="AdminChangeResult.NotFound"/>。</summary>
+    /// <exception cref="ArgumentException"><paramref name="language"/> が空白だけ、または 16 文字を超える。</exception>
     Task<AdminChangeResult> SetLanguageAsync(Guid id, string language, CancellationToken cancellationToken = default);
 }
 
@@ -541,7 +541,12 @@ public sealed class AdminUserStore(
     public async Task<AdminChangeResult> SetLanguageAsync(
         Guid id, string language, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+        ArgumentNullException.ThrowIfNull(language);
+        if (language.Length > 0 && string.IsNullOrWhiteSpace(language))
+        {
+            throw new ArgumentException("言語は空にするか、値を入れる（空白だけは不可）。", nameof(language));
+        }
+
         if (language.Length > 16)
         {
             throw new ArgumentException("言語は 16 文字以内にする。", nameof(language));
