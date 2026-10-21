@@ -267,6 +267,44 @@ public sealed class AdminUserStoreTests : DatabaseTestBase
         Assert.Equal(1, await store.CountRecoveryCodesAsync(user.Id));
     }
 
+    [Theory]
+    [EnabledDatabases]
+    public async Task 未使用の復旧コードのハッシュだけを一覧にする(DatabaseProvider provider)
+    {
+        var (store, _) = StoreFor(provider);
+        var user = (await store.CreateAsync(NewLoginId(), "hash", "Editor", "ja"))!;
+        var other = (await store.CreateAsync(NewLoginId(), "hash", "Editor", "ja"))!;
+        await store.EnableTotpAsync(user.Id, "S", 1, ["code-1", "code-2"]);
+        await store.EnableTotpAsync(other.Id, "S", 1, ["other-1"]);
+
+        Assert.Equal(["code-1", "code-2"], (await store.ListUnusedRecoveryCodeHashesAsync(user.Id)).Order().ToArray());
+
+        Assert.True(await store.TryUseRecoveryCodeAsync(user.Id, "code-1"));
+        Assert.Equal(["code-2"], await store.ListUnusedRecoveryCodeHashesAsync(user.Id));
+        Assert.Equal(["other-1"], await store.ListUnusedRecoveryCodeHashesAsync(other.Id));
+        Assert.Empty(await store.ListUnusedRecoveryCodeHashesAsync(Guid.NewGuid()));
+    }
+
+    [Theory]
+    [EnabledDatabases]
+    public async Task 言語を変える(DatabaseProvider provider)
+    {
+        var (store, _) = StoreFor(provider);
+        var user = (await store.CreateAsync(NewLoginId(), "hash", "Editor", "ja"))!;
+
+        Assert.Equal(AdminChangeResult.Updated, await store.SetLanguageAsync(user.Id, "en"));
+        Assert.Equal("en", (await store.FindByIdAsync(user.Id))!.Language);
+
+        // 同じ値への更新も成功（MySQL は更新件数が 0 になる）
+        Assert.Equal(AdminChangeResult.Updated, await store.SetLanguageAsync(user.Id, "en"));
+        Assert.Equal(AdminChangeResult.NotFound, await store.SetLanguageAsync(Guid.NewGuid(), "en"));
+
+        foreach (var invalid in new[] { "", "   ", "12345678901234567" })
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SetLanguageAsync(user.Id, invalid));
+        }
+    }
+
     [Fact]
     public void 棚卸しは_招待中と無効を対象にしない()
     {
