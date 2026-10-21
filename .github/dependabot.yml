@@ -1,72 +1,11 @@
-# 依存の更新を Dependabot に出させる。
-#
-# **base は develop。** 既定ブランチも develop だが、明示しておく
-# （_documents/ブランチ運用方針.md）。master へ直接 PR を向けない。
-#
-# **更新が来ても、寛容ライセンス（MIT / BSD 系 / Apache-2.0）以外は入れないこと。**
-# ライセンスが変わった依存は NOTICE を直すか、採用をやめる（LICENSING.md）。
-# **版を上げたら NOTICE の版も直すこと**（scripts/notice-check.sh が落ちる）。
-#
-# ラベルは付けない。ラベルの体系が未整備のため（_documents/ブランチ運用方針.md）。
-#
-# 参照した一次情報
-#   https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+# npm と NuGet の patch 更新は Dependabot ではなく、自前のワークフロー（patch-updates.yml）が行う。
+# NOTICE とロックファイルまで 1 つの PR に揃えるため。minor・major の更新は、人が必要に応じて行う。
+# ここに残すのは GitHub Actions の更新だけ（Actions の版は NOTICE・ロックファイルに関係しない）。
 version: 2
-
 updates:
-  # ---- .NET（NuGet） -------------------------------------------------------
-  # **版は Directory.Packages.props（Central Package Management）にある。**
-  # ルートを指して、そこを更新させる
-  - package-ecosystem: nuget
-    directory: "/"
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: Asia/Tokyo
-    open-pull-requests-limit: 5
-    target-branch: develop
-    commit-message:
-      prefix: NuGet の依存を更新する
-    groups:
-      # **試験まわりは 1 本の PR にまとめる。** 単独で上げても意味が薄い
-      test-tooling:
-        patterns:
-          - "xunit*"
-          - "Microsoft.NET.Test.Sdk"
-          - "coverlet*"
-      # **FluentMigrator は同じ版で揃える。** 版が割れると実行時に食い違う
-      fluentmigrator:
-        patterns:
-          - "FluentMigrator*"
-
-  # ---- 開発道具（npm。Markdown の検査に使う markdownlint） ---------------------
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: Asia/Tokyo
-    open-pull-requests-limit: 5
-    target-branch: develop
-    commit-message:
-      prefix: npm の依存を更新する
-
-  # ---- GitHub Actions ------------------------------------------------------
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: Asia/Tokyo
     open-pull-requests-limit: 5
-    target-branch: develop
-    commit-message:
-      prefix: Actions の依存を更新する
-    groups:
-      # **公式 actions はまとめて上げる。** 1 本ずつ来ても判断は同じ
-      github-official:
-        patterns:
-          - "actions/*"
