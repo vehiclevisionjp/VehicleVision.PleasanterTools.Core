@@ -10,6 +10,7 @@ VehicleVision.PleasanterTools の各アプリ
 |---|---|
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・RDBMS ごとの方言差・接続の暗号化検査・起動時マイグレーションと排他 |
+| `VehicleVision.PleasanterTools.Core.Web` | Web 層の部品。Pleasanter のログイン（cookie）で本人を確かめる問い合わせ（`PleasanterSessionVerifier`） |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
 
@@ -29,11 +30,21 @@ var connectionString = DatabaseConnectionString.Resolve(
 var migrator = new DatabaseMigrator(
     typeof(M0001_InitialSchema).Assembly,
     lockName: "questionnaire-startup-migrations");
+
+// Core.Web。本アプリの Pleasanter 接続設定（IPleasanterApiConnectionSource）はアプリが登録する
+builder.Services.AddPleasanterSessionVerifier(new PleasanterSessionVerifierSettings
+{
+    SessionProbeKey = "VehicleVision.Questionnaire.SsoProbe",
+    BaseUrlSettingName = "QUESTIONNAIRE_PLEASANTER_BASEURL",
+    ApiKeySettingName = "QUESTIONNAIRE_PLEASANTER_APIKEY",
+});
 ```
+
+何を Core.Web へ移し、何をアプリに残したかは [`_documents/Core.Web-共通化の方針.md`](_documents/Core.Web-共通化の方針.md)。
 
 ## 配布と参照（nuget.org）
 
-nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data`）。
+nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data` / `.Web`）。
 **認証なしで取得できる**ので、参照するリポジトリは、`PackageReference` を書くだけです
 （`nuget.config` の追加も、トークンも要りません）。
 
@@ -68,6 +79,7 @@ dotnet test
 | 文書 | 内容 |
 |---|---|
 | [コア化の方針](_documents/コア化の方針.md) | 何を Core に置くか、アプリ固有の値の渡し方、アプリの採用手順、移行の状況 |
+| [Core.Web 共通化の方針](_documents/Core.Web-共通化の方針.md) | Core.Web へ移したもの・移さなかったもの、アプリ固有の値の受け口、各アプリの置き換え手順 |
 | [ブランチ運用方針](_documents/ブランチ運用方針.md) | ブランチ・PR・CI・ブランチ保護 |
 | [リリース手順書](_documents/リリース手順書.md) | 版の付け方と公開の手順 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 貢献のしかたと CLA |

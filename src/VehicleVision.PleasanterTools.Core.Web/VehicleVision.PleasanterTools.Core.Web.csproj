@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Web</PackageId>
+    <Description>VehicleVision.PleasanterTools 各アプリ共通の Web 層の部品（Pleasanter のログインで本人を確かめる問い合わせ）。</Description>
+    <PackageTags>pleasanter;vehiclevision;aspnetcore;sso;authentication</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core の共有フレームワーク（IHttpClientFactory・ILogger・StringValues・DI）。
+         **アプリ（ASP.NET Core）が持つ版をそのまま使う**ので、版の食い違いが起きず、NOTICE の行も増えない。
+         Microsoft.NET.Sdk.Web にはしない（実行ファイルではなくライブラリのため） -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VehicleVision.PleasanterTools.Core.Web.Tests" />
+  </ItemGroup>
+
+</Project>
