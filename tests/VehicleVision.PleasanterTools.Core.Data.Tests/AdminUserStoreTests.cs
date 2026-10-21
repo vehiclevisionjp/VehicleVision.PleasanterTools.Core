@@ -299,10 +299,16 @@ public sealed class AdminUserStoreTests : DatabaseTestBase
         Assert.Equal(AdminChangeResult.Updated, await store.SetLanguageAsync(user.Id, "en"));
         Assert.Equal(AdminChangeResult.NotFound, await store.SetLanguageAsync(Guid.NewGuid(), "en"));
 
-        foreach (var invalid in new[] { "", "   ", "12345678901234567" })
+        // 空文字は「選んでいない」へ戻す
+        Assert.Equal(AdminChangeResult.Updated, await store.SetLanguageAsync(user.Id, string.Empty));
+        Assert.Equal(string.Empty, (await store.FindByIdAsync(user.Id))!.Language);
+
+        foreach (var invalid in new[] { "   ", "12345678901234567" })
         {
             await Assert.ThrowsAsync<ArgumentException>(() => store.SetLanguageAsync(user.Id, invalid));
         }
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.SetLanguageAsync(user.Id, null!));
     }
 
     [Fact]
