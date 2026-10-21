@@ -38,6 +38,7 @@ Questionnaire ほか）が共通で使う、コア部分の実装。** アプリ
 |---|---|
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・接続の暗号化検査・起動時マイグレーションと排他 |
+| `VehicleVision.PleasanterTools.Core.Web` | Web 層の部品（Pleasanter のログインで本人を確かめる問い合わせ） |
 
 - 言語・ランタイムは **Pleasanter 本体と各アプリに揃える**。`global.json` は各アプリと同じ値に保つ
   （`ci.yml` が一致を検査する）
