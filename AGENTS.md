@@ -34,5 +34,6 @@ Claude Code はローカルで `CLAUDE.md` を読み、そこから同じ参照�
    （[`_documents/コア化の方針.md`](_documents/コア化の方針.md)）
 9. **公開 API を変える PR は、各アプリの追随を Issue に残すこと。** Core を直しても、
    アプリが古い版を参照している限り、**ばらつきは直っていない**
-10. **`{}` を省略しない。** `if` / `else` / `for` / `foreach` / `while` / `using` / `lock` などの本文も、1 行で済む場合も同じ。C# は `.editorconfig` とビルドで、TypeScript・Svelte は ESLint の `curly` で強制する。
+10. **`{}` を省略しない。** `if` / `else` / `for` / `foreach` / `while` / `using` / `lock` などの本文も、
+   1 行で済む場合も同じ。C# は `.editorconfig` とビルドで、TypeScript・Svelte は ESLint の `curly` で強制する。
 
