@@ -13,7 +13,7 @@
 # 参照した一次情報（2026-10-20 参照）
 #   - Trusted Publishing: https://learn.microsoft.com/nuget/nuget-org/trusted-publishing
 #   - NuGet/login v1.2.0: https://github.com/NuGet/login
-name: release
+name: Release
 
 on:
   push:
@@ -32,7 +32,7 @@ env:
 
 jobs:
   publish:
-    name: nuget.org へ公開
+    name: publish-nuget
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

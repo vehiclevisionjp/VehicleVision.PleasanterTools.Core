@@ -5,7 +5,7 @@
 # （_documents/ブランチ運用方針.md「CI の実行条件」）。
 #
 # actions/checkout v7 / actions/setup-dotnet v6 は各アプリの ci.yml と同じ版に揃えた（勝手に上げない）。
-name: ci
+name: CI
 
 on:
   push:
@@ -30,7 +30,7 @@ env:
 
 jobs:
   build-test:
-    name: ビルドと単体テスト
+    name: build-test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -46,7 +46,7 @@ jobs:
   sdk-consistency:
     # 各アプリと SDK 指定がずれていないかを見張る（ばらつきの再発防止）。
     # 基準値は各アプリの global.json と同じ（Pleasanter 本体に揃えた値）
-    name: SDK 指定の一致検査
+    name: sdk-consistency
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -62,7 +62,7 @@ jobs:
 
   agents-sync:
     # AGENTS.md は .github/copilot-instructions.md から生成する。手で直されていないかを見る
-    name: 規約の同期検査
+    name: instructions-sync
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

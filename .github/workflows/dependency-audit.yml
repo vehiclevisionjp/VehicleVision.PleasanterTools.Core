@@ -11,7 +11,7 @@
 # **actions/dependency-review-action は使わない。** 依存関係グラフを前提にした action で、
 # 脆弱性の検査は GitHub の機能に依らない `dotnet list package --vulnerable` で見る
 # （PR で入る依存は別の dependency-review.yml が見る）。
-name: 依存の脆弱性検査
+name: Dependency Audit
 
 on:
   # ci.yml と同じ契機（全ブランチへの push）。タグの push では回さない
@@ -37,7 +37,7 @@ env:
 
 jobs:
   nuget-audit:
-    name: NuGet 依存の脆弱性検査
+    name: nuget-audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -64,7 +64,7 @@ jobs:
           if-no-files-found: ignore
 
   notice-consistency:
-    name: NOTICE と依存の整合検査
+    name: notice-consistency
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
