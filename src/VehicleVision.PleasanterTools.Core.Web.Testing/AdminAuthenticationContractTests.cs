@@ -103,7 +103,7 @@ public abstract class AdminAuthenticationContractTests : IAsyncLifetime
         AssertNoCookie(locked, Settings.Cookies.Reenroll);
         Assert.Equal(
             [HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized,
-                HttpStatusCode.Unauthorized, HttpStatusCode.Locked],
+                HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized],
             statuses);
     }
 

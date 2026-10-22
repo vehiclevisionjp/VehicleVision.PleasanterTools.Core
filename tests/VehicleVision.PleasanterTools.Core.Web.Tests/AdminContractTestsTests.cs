@@ -36,14 +36,16 @@ public sealed class AdminContractTestsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task C2は5回目と締め出し中の正しいパスワードを検証する(bool broken)
+    [InlineData(6)]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(7)]
+    public async Task C2は5回とも401で次の正しいパスワードは423であることを検証する(int lockedFromAttempt)
     {
         var steps = LoginSteps().Concat(Enumerable.Range(1, 6).Select(attempt =>
             new Step(AdminContractOperation.ReenrollmentBegin,
-                attempt >= 5 && !broken ? HttpStatusCode.Locked : HttpStatusCode.Unauthorized)));
-        await RunAsync(steps, run => run.C2_パスワードの再確認は5回失敗すると締め出す(), broken);
+                attempt >= lockedFromAttempt ? HttpStatusCode.Locked : HttpStatusCode.Unauthorized)));
+        await RunAsync(steps, run => run.C2_パスワードの再確認は5回失敗すると締め出す(), lockedFromAttempt != 6);
     }
 
     [Theory]
