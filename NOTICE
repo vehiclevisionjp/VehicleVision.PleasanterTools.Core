@@ -54,9 +54,14 @@ Copyright (C) PMC Co.,Ltd.
     （Core.Web が FrameworkReference で参照する。**パッケージには含めず再頒布もしない。** アプリの実行環境が持つものを使う。
       ライセンスは GitHub の API で確認、参照日 2026-10-22）
 
-試験にだけ使うもの（成果物には入らない）
+試験用パッケージの依存（アプリの本体からは参照しない）
 
-  xunit 2.9.3 / Apache-2.0
+  xunit 2.9.3 / Apache-2.0 / https://github.com/xunit/xunit/blob/v2-2.9.3/license.txt
+    （Core.Web.Testing の共有テスト基底クラスに使用。NuGet の依存として配布する。
+      上流タグのライセンスを確認、参照日 2026-10-22）
+
+試験の実行にだけ使うもの（成果物には入らない）
+
   xunit.runner.visualstudio 4.0.1 / Apache-2.0
   Microsoft.NET.Test.Sdk 18.11.0 / MIT
   coverlet.collector 10.1.0 / MIT
