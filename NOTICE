@@ -17,6 +17,8 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
 
 名称 / バージョン / ライセンス / 入手元
 
+  Otp.NET 1.4.1 / MIT / https://www.nuget.org/packages/Otp.NET/1.4.1
+    （TOTP の計算。https://github.com/kspearrin/Otp.NET/blob/master/LICENSE.txt を確認、参照日 2026-10-22）
   Dapper 2.1.89 / Apache-2.0 / https://www.nuget.org/packages/Dapper
   FluentMigrator 8.0.1 / Apache-2.0 / https://www.nuget.org/packages/FluentMigrator
   FluentMigrator.Runner 8.0.1 / Apache-2.0
