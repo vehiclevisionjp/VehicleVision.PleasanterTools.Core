@@ -11,7 +11,7 @@ VehicleVision.PleasanterTools の各アプリ
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
 | `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証 |
-| `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約 C1〜C5 を持つ xUnit 基底クラス（未公開） |
+| `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は preview.11 公開済み、追加の安全性契約は未公開 |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
 
