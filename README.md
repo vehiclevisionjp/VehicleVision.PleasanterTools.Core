@@ -9,8 +9,8 @@ VehicleVision.PleasanterTools の各アプリ
 | パッケージ | 内容 |
 |---|---|
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
-| `VehicleVision.PleasanterTools.Core.Data` | DB 接続・RDBMS ごとの方言差・接続の暗号化検査・起動時マイグレーションと排他 |
-| `VehicleVision.PleasanterTools.Core.Web` | Web 層の部品。Pleasanter のログイン（cookie）で本人を確かめる問い合わせ（`PleasanterSessionVerifier`） |
+| `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
+| `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証 |
 | `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約 C1〜C5 を持つ xUnit 基底クラス（未公開） |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
@@ -47,6 +47,39 @@ builder.Services.AddPleasanterSessionVerifier(new PleasanterSessionVerifierSetti
 
 何を Core.Web へ移し、何をアプリに残したかは [`_documents/Core.Web-共通化の方針.md`](_documents/Core.Web-共通化の方針.md)。
 
+### SSO・SAML 設定とマイグレーションコマンド（preview.12 公開予定）
+
+```csharp
+var sso = PleasanterSsoOptions.FromConfiguration(
+    configuration, prefix: "APP_", ownCookiePrefix: "app.",
+    registerRoles: ["Editor", "Administrator"], defaultRegisterRole: "Editor");
+var saml = SamlOptions.FromConfiguration(
+    configuration, prefix: "APP_",
+    registerRoles: ["Editor", "Administrator"], defaultRegisterRole: "Editor");
+
+// DB と外部設定を合成する場合は FromValues(valueOf, 設定キー型, …) を使う。
+var keys = new PleasanterSsoSettingKeys("APP_");
+// 設定の誤りは AuthenticationSettingException（InvalidOperationException の派生）。
+// Error と Arguments から、アプリの多言語例外へ写し替えられる。
+
+if (MigrationCommand.IsRequested(args))
+{
+    return await MigrationCommand.RunAsync(migrator, provider, connectionString, args);
+}
+```
+
+役割はアプリが名前の一覧と既定を渡します。アプリの列挙の数値・複合表記の解釈や
+ITfoxtec への設定変換はアプリに残します。既存アプリのアダプターの手順は上記の方針を参照してください。
+
+コマンドは `--migrate`（適用）と `--migrate-status`（未適用ありなら終了コード 1）を受け付けます。
+DB の待機は `--wait-for-db=N`、ロックの待機は `RunAsync` の `lockTimeout`
+（省略時は `AppDatabase.DefaultMigrationLockTimeout`）で指定します。
+**AtomFeed・CalendarFeed は、置き換え後に適用前の一覧と適用件数が出るようになります。**
+状態の確認はスキーマを適用しませんが、新規 SQLite DB に空の `VersionInfo` 表を作る場合があります。
+
+**今回は Core のみを実装しています。各アプリの置き換えは preview.12 公開後の別作業です。**
+この変更自体はタグを付けず、公開しません。
+
 ## 配布と参照（nuget.org）
 
 nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data` / `.Web`）。
@@ -54,14 +87,14 @@ nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Dat
 （`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0-preview.10" />
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0-preview.11" />
 ```
 
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`](_documents/リリース手順書.md)
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
 - 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）。
-  nuget.org の公開済みの版は Mail・Data が preview.2〜10、Web は preview.10 が最初です
+  nuget.org の公開済みの版は Mail・Data が preview.2〜11、Web は preview.10〜11 です
   （2026-10-22 に各パッケージの版一覧を確認。[Mail][mail-versions] / [Data][data-versions] / [Web][web-versions]）
 
 [mail-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.mail/index.json
