@@ -4,8 +4,8 @@ using Xunit;
 
 namespace VehicleVision.PleasanterTools.Core.Web.Testing;
 
-/// <summary>C1〜C5 の HTTP 契約。アプリはホストの生成だけを実装して継承する。</summary>
-public abstract class AdminAuthenticationContractTests : IAsyncLifetime
+/// <summary>管理画面の HTTP 契約。アプリはホストの生成を実装して継承する。</summary>
+public abstract partial class AdminAuthenticationContractTests : IAsyncLifetime
 {
     private IAdminContractHost? host;
     private IAdminContractHost Host => host ?? throw new InvalidOperationException("ホストが初期化されていません。");

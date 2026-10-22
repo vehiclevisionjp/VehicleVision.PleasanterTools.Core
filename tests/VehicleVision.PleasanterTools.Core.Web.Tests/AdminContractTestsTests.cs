@@ -6,7 +6,7 @@ using Xunit.Sdk;
 
 namespace VehicleVision.PleasanterTools.Core.Web.Tests;
 
-public sealed class AdminContractTestsTests
+public sealed partial class AdminContractTestsTests
 {
     [Theory]
     [InlineData(AdminContractOperation.EnrollmentBegin, false)]
@@ -212,10 +212,14 @@ public sealed class AdminContractTestsTests
         public AdminContractSettings Settings { get; }
         public AdminContractCapabilities Capabilities { get; }
 
-        public ScriptedHost(IEnumerable<Step> steps, bool absent = false)
+        public ScriptedHost(IEnumerable<Step> steps, bool absent = false,
+            IReadOnlySet<AdminContractFeature>? features = null)
         {
             Steps = new(steps);
-            Capabilities = new(absent ? [] : Enum.GetValues<AdminContractOperation>().ToHashSet());
+            Capabilities = new(absent ? [] : Enum.GetValues<AdminContractOperation>().ToHashSet())
+            {
+                Features = features ?? new HashSet<AdminContractFeature>(),
+            };
             Settings = new()
             {
                 Endpoints = Endpoints,
@@ -223,6 +227,7 @@ public sealed class AdminContractTestsTests
                 NextProperty = "stage",
                 TotpNextValue = "otp",
                 LoginFailureShape = new Dictionary<string, JsonValueKind> { ["error"] = JsonValueKind.String },
+                JitNonAdministratorRole = "TestEditor",
             };
         }
 
@@ -242,6 +247,53 @@ public sealed class AdminContractTestsTests
         }
 
         public string NextTotpCode(SeededAdmin admin) => "123456";
+        public string NextReenrollmentTotpCode(SeededAdmin admin) => "654321";
+        public Task<SeededAdmin> SeedAdminWithPermissionsAsync(IReadOnlySet<string> permissions)
+        {
+            Assert.Contains("users.read", permissions);
+            Assert.InRange(permissions.Count, 1, 2);
+            return SeedAdminAsync(withTotp: true);
+        }
+
+        public Task SetTwoFactorPolicyAsync(AdminContractTwoFactorPolicy policy) => Task.CompletedTask;
+        public Task SetLockoutAsync(SeededAdmin admin, bool locked) => Task.CompletedTask;
+        public Task EnableAdminAsync(SeededAdmin admin) => Task.CompletedTask;
+        private int sessionCount;
+        public Task<string> CreateSessionAsync(SeededAdmin admin, AdminContractSessionKind kind) =>
+            Task.FromResult($"{kind}=token-{++sessionCount}");
+
+        public async Task<HttpResponseMessage> ProbeSessionAsync(
+            HttpClient client, SeededAdmin admin, AdminContractSessionKind kind)
+        {
+            using var request = Endpoints[AdminContractOperation.Users].CreateRequest(new(LoginId: admin.LoginId));
+            return await client.SendAsync(request);
+        }
+
+        public Task<SeededAdmin> SeedExternalAdminAsync(
+            AdminContractExternalProvider provider, bool withTotp, bool existing = true, bool knownPassword = true) =>
+            SeedAdminAsync(withTotp);
+
+        public Task<HttpResponseMessage> ExternalLoginAsync(
+            HttpClient client, SeededAdmin admin, AdminContractExternalProvider provider) => LoginAsync(client, admin);
+
+        public Task ConfigureJitAsync(AdminContractExternalProvider provider, string role, bool hasAdministrator) =>
+            Task.CompletedTask;
+
+        public Task<HttpRequestMessage> CreateUserLookupRequestAsync(SeededAdmin admin) =>
+            Task.FromResult(Endpoints[AdminContractOperation.Users].CreateRequest(new(LoginId: admin.LoginId)));
+
+        public bool ContainsUser(string responseBody, SeededAdmin admin)
+        {
+            using var body = JsonDocument.Parse(responseBody);
+            return body.RootElement.GetProperty("exists").GetBoolean();
+        }
+
+        public Task<string> RecoveryCodeAsync(SeededAdmin admin) => Task.FromResult("old-code");
+
+        public Task PrepareExternalReconfirmationAsync(
+            HttpClient client, SeededAdmin admin, AdminContractExternalProvider provider, AdminContractReconfirmation proof) =>
+            Task.CompletedTask;
+
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
         private sealed class Handler(ScriptedHost host) : HttpMessageHandler
