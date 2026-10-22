@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>VehicleVision.PleasanterTools.Core.Data</PackageId>
-    <Description>VehicleVision.PleasanterTools 各アプリ共通の DB 基盤（接続・方言差・起動時マイグレーションと排他）。</Description>
+    <Description>VehicleVision.PleasanterTools 各アプリ共通の DB 基盤（接続・方言差・マイグレーションと排他・適用と状態確認のコマンド）。</Description>
     <PackageTags>pleasanter;vehiclevision;database;migration;fluentmigrator;dapper;sqlserver;postgresql;mysql;sqlite</PackageTags>
   </PropertyGroup>
 

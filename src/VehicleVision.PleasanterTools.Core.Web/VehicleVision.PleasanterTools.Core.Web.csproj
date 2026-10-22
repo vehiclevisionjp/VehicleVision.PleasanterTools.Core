@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>VehicleVision.PleasanterTools.Core.Web</PackageId>
-    <Description>VehicleVision.PleasanterTools 各アプリ共通の Web 層の部品（Pleasanter のログインで本人を確かめる問い合わせ）。</Description>
+    <Description>VehicleVision.PleasanterTools 各アプリ共通の Web 層の部品（Pleasanter の本人確認、SSO・SAML の設定の読み取りと検証）。</Description>
     <PackageTags>pleasanter;vehiclevision;aspnetcore;sso;authentication</PackageTags>
   </PropertyGroup>
 
