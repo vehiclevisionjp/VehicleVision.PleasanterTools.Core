@@ -1,7 +1,8 @@
 # 管理画面の API 契約の仕様書
 
-[管理画面の共通仕様書](../管理画面の共通仕様書.md)の 5 章。**基準は Questionnaire（Q）の実装**。
-各アプリとの差は 5.5 にまとめる。
+[管理画面の共通仕様書](../管理画面の共通仕様書.md)の 5 章。
+**U3 により共通 API は Questionnaire（Q）の形に統一する**。U1・U4・U13・U14 の変更を以下に織り込む。
+各アプリの現状との差は 5.6 と付録 A.3 に残す。本文の応答は目標の契約であり、全アプリの実装済みを意味しない。
 
 ## 5.1 共通の約束
 
@@ -21,7 +22,7 @@
 
 パスワードの失敗は、**上限に達した要求自体も通常と同じ 401（理由を区別しない）**を返し、
 **その次の要求から**締め出し中は 423 を返す（再確認も同じ）。締め出しの期間は設定による
-（Q は既定 15 分、外部設定は不可。6.4）。
+（既定 15 分。U10、6.4）。現行 Q の外部設定不可は解消対象。
 根拠: `Q.Web/Services/AdminAuthenticator.cs:154-165,452-465`、
 `Q.Web/Endpoints/AdminAuthEndpoints.cs:319-332`、`Q.Web/Endpoints/AdminUserEndpoints.cs:605-618`。
 
@@ -51,22 +52,31 @@
 | POST `/users/{id}/invitation` | `users.write` | — | 同上（前の招待は死ぬ） | 404 / 400（無効の人） | 同 `:119-152` |
 | POST `/users/{id}/disable` | `users.write` | — | `{isDisabled:true}` | 404 / 409 `users.selfNotAllowed`・`users.lastAdministrator` | 同 `:154-163, 557-572` |
 | POST `/users/{id}/enable` | `users.write` | — | `{isDisabled:false}` | 同上 | 同 `:165-173` |
-| POST `/users/{id}/totp/reset` | **`users.read`（群の既定のまま）**。画面は `users.resetTwoFactor` で出し分ける（未決事項 U1） | — | `{reset:true}` | 400 `users.selfNotAllowed`・`auth.twoFactorNotEnrolled` / 404 | 同 `:175-222`、`Q.Frontend/src/admin/AdminApp.svelte:631` |
+| POST `/users/{id}/totp/reset` | **サーバで `users.resetTwoFactor`**（U1） | — | `{reset:true}`。相手の全セッションを失効（U14） | 403 権限なし / 400 `users.selfNotAllowed`・`auth.twoFactorNotEnrolled` / 404 | 同 `:175-222`（現状との差は後述）、U1・U14 |
 | POST `/users/{id}/role` | `users.write` | `{role}`（定義済みの名前だけ。数値は不可） | `{role}`。相手の全セッションを失効 | 400 / 404 / 409 自分・最後の Administrator | 同 `:224-255, 643-652` |
 | GET `/users/{id}/sessions` | `users.read` | — | `{sessions:[端末]}` | — | `Q.Web/Endpoints/AdminSessionEndpoints.cs:79-92` |
 | POST `/users/{id}/sessions/{handle}/revoke` | `users.write` | — | `{revoked:true}` | 400 自分 / 404 `sessions.notFound`（他人の handle も 404） | 同 `:94-118, 123-143` |
 | POST `/me/password` | Session | `{currentPassword, newPassword}` | `{changed:true, revokedSessions}`（いまの端末以外を失効） | 400 条件・同じ値 / 401 `users.currentPasswordRejected` / 423 | `Q.Web/Endpoints/AdminUserEndpoints.cs:263-292` |
 | PUT `/me/language` | Session | `{language}`（空なら未選択へ戻す） | `{language}` | 400 `users.unsupportedLanguage` | 同 `:294-321` |
-| POST `/me/totp/disable` | Session | `{password}` | `{removed:true}` | 400 `auth.twoFactorRequired`・`auth.twoFactorNotEnrolled` / 401 / 423 | 同 `:337-389` |
-| POST `/me/totp/begin` | Session ＋ **パスワードの再確認** | `{password}` | `{secret, uri}`。Reenroll の cookie を張る | 401 / 423 / 400 `auth.twoFactorDisabled` | 同 `:391-434` |
-| POST `/me/totp/complete` | Session ＋ 同じ人の Reenroll | `{code}` | `{recoveryCodes[10]}`（前の復旧コードは無効） | 400 `auth.enrollmentRestartRequired` / 401 `auth.totpCodeMismatch` | 同 `:436-485` |
+| POST `/me/totp/disable` | Session ＋ 本人の再確認（U13） | パスワード方式は `{password}`。外部方式は後述 | `{removed:true}` | 400 `auth.twoFactorRequired`・`auth.twoFactorNotEnrolled` / 401 / 423 | 同 `:337-389`、U13 |
+| POST `/me/totp/begin` | Session ＋ 本人の再確認（U7・U13） | 同上 | `{secret, uri}`。Reenroll の cookie を張る | 401 / 423 / 400 `auth.twoFactorDisabled` | 同 `:391-434`、U7・U13 |
+| POST `/me/totp/complete` | Session ＋ 同じ人の Reenroll | `{code}` | `{recoveryCodes[10]}`（前の復旧コードは無効） | 400 `auth.enrollmentRestartRequired`・`auth.twoFactorDisabled`（U4）/ 401 `auth.totpCodeMismatch` | 同 `:436-485`、U4 |
 | GET `/me/sessions` | Session | — | `{sessions:[{adminSessionId, current, createdAt, expiresAt, ipAddress, userAgent, loginMethod:"Password"\|"Saml"\|"PleasanterSso"}]}` | — | `Q.Web/Endpoints/AdminSessionEndpoints.cs:29-39, 145-177` |
 | POST `/me/sessions/revoke-others` | Session | — | `{revoked:<件数>}` | — | 同 `:41-52` |
 | POST `/me/sessions/{handle}/revoke` | Session | — | `{revoked:true}` | 400 `sessions.currentCannotBeRevoked` / 404 | 同 `:54-77` |
 | POST `/invitations/accept` | 公開 | `{token, password, altcha?}` | `{next:"totp"\|"enroll"\|"done"}` | 401 `users.invitationInvalid`（理由を区別しない）/ 400 パスワードの条件（理由つき） | `Q.Web/Endpoints/AdminUserEndpoints.cs:488-555` |
 
-`/me/totp/complete` では方針の `Disabled` を入口で確かめていない。begin の後に設定が `Disabled` へ変わると、
-`EnsureEnrollmentAllowed` の例外になる（`Q.Web/Services/AdminAuthenticator.cs:399-410`）。**応答の状態は未確認**（未決事項 U4）。
+**決定後の追加規範**:
+
+- 他人の 2 要素解除と利用者の無効化は、対象者の全セッションを失効させる（U14、4.3）
+- 再登録 begin と自己解除には、本人の再確認とログイン用のレート制限を掛ける（U7・U13）。
+  パスワード、または直近の外部ログインを受ける。外部方式の要求形・時間窓は 11.9 で具体化する
+- `/me/totp/complete` は、開始後に方針が変わっても入口で 400 `auth.twoFactorDisabled` を返し、例外にしない（U4）
+
+**現状との差**: Q の reset は `users.read` のみで、相手の全セッションを消さない。
+Q の再確認はパスワードのみ。complete で `Disabled` を入口で確かめず、`EnsureEnrollmentAllowed` の例外になる
+（`Q.Web/Services/AdminAuthenticator.cs:399-410`）。その例外時の HTTP 状態は未確認。
+AF・CF の complete は既に拒否するが、400 ではなく 403（A.2）。
 
 ## 5.4 外部ログイン・監査・設定（共通の候補）
 
@@ -95,7 +105,8 @@ IdP の業務の入口（`/api/admin/oidc-clients/**`・`/saml-providers/**`・`
 ## 5.6 各アプリとの対応
 
 経路ごとの対応（同じ口があるか・形がどう違うか）は [各アプリの差異の一覧](各アプリの差異の一覧.md)の A.3 にまとめた。
-大きな差は次の 5 つ。
+以下は**現状との差**。U3 の決定後は、5.1〜5.4 の共通 API の経路・メソッド・要求・応答に合わせる。
+U13 の外部再確認など、Q 自身も変更する決定は Q の現状より優先する。
 
 - **接頭辞**: AtomFeed・CalendarFeed は `/admin/api`。Q と IdP は `/api/admin`（`AF.Web/Endpoints/AdminAuthEndpoints.cs:40`）
 - **2 要素の登録**: AtomFeed・CalendarFeed は `/enroll/*` を持たず、`/me/totp/*` をログイン途中にも使う
@@ -103,4 +114,24 @@ IdP の業務の入口（`/api/admin/oidc-clients/**`・`/saml-providers/**`・`
 - **更新の方法**: AtomFeed・CalendarFeed は役割の変更が PUT、端末の失効が DELETE、成功の多くが 204
 - **IdP**: 管理者の管理・招待・2 要素の口は無い（Pleasanter で行う）
 - **締め出し**: Q は上限到達の失敗も 401、次の要求から 423。AF・CF のログインは締め出し中も 401、
-  IdP は上限到達の要求から 429 の画面（根拠と期間の差は 6.4・A.2）。統一は U3 の未決事項
+  IdP は上限到達の要求から 429 の画面（6.4・A.2）。U3・U15 により上限到達は 401、次から 423 に統一する
+
+### 5.6.1 U3 の適用と移行
+
+- 接頭辞は `/api/admin`、エラーは Q の `{message}` と明示された `{code}` の区分を採用する。
+  Pleasanter SSO や設定試験の `{code}` を一律 `{message}` に潰さない
+- 成功は表の JSON 本文と状態に揃える。例: setup は 200 と `{next}`、logout は `{signedOut:true}`、
+  role は `{role}`、disable・enable は `{isDisabled}`、reset は `{reset:true}`。
+  AF・CF の 201・204 や `{step}` をそのまま残さない
+- 招待失敗は無い・期限切れ・使用済みとも 401 `users.invitationInvalid`。
+  役割変更は POST、端末の失効は POST `…/{handle}/revoke` とし、PUT・DELETE の現状は変更する
+- `/status`・`/me` は `/session` の共通情報へ、登録の兼用口は `/enroll/*` と `/me/totp/*` へ分離する。
+  監査一覧の要求名・ページング・応答包みも Q の表に揃える。SAML・Pleasanter の設定の共通口も対応させる
+- AF・CF は `Frontend/src/lib/api.ts` と Svelte のログイン・登録・管理者・端末・監査・設定画面を同時に直す。
+  SAML メタデータ・ACS の表示 URL、cookie の Path、配備先の IdP の ACS 設定も移行点として記録する
+- IdP には管理者作成・招待・2 要素登録の API を新設しない。
+  既存の共通部分（logout・監査・エラー本文）を合わせ、独自の全利用者セッション管理と業務 API は維持する。
+  `/login` のサーバ描画を SPA 化しないが、失敗の HTTP 状態は U3・U15 に合わせる
+
+契約テストの形の検査を先に拡張してから変更する。
+既存の C1〜C5 は経路・本文の差をホストで吸収でき、**それだけでは U3 の形の統一を保証しない**（C15、11.4）。
