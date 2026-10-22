@@ -21,9 +21,9 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Company>PMC Co.,Ltd.</Company>
-    <Authors>VehicleVision</Authors>
-    <Copyright>Copyright (C) PMC Co.,Ltd.</Copyright>
+    <Company>PMC Co., Ltd. IT Solution Div.</Company>
+    <Authors>PMC Co., Ltd. IT Solution Div.</Authors>
+    <Copyright>Copyright (C) PMC Co., Ltd. IT Solution Div.</Copyright>
     <Product>VehicleVision.PleasanterTools.Core</Product>
     <RepositoryUrl>https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
