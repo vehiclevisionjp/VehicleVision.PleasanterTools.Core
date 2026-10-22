@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Web\VehicleVision.PleasanterTools.Core.Web.csproj" />
+    <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Web.Testing\VehicleVision.PleasanterTools.Core.Web.Testing.csproj" />
   </ItemGroup>
 
 </Project>

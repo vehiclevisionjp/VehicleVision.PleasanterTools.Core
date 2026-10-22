@@ -19,6 +19,12 @@
 | 時刻 | UTC と分かる形（`DateTimeKind.Utc`）で返す。監査ログの `occurredAt` だけは旧の形（時間帯の印なし）を保つ | `Q.Web/Endpoints/AdminUserEndpoints.cs:632-641`、`Q.Web/Endpoints/AdminAuditLogEndpoints.cs:68-69` |
 | ID | 管理者 ID は GUID。端末は 16 進 64 文字（`^[0-9a-f]{64}$`） | `Q.Web/Endpoints/AdminSessionEndpoints.cs:18` |
 
+パスワードの失敗は、**上限に達した要求自体も通常と同じ 401（理由を区別しない）**を返し、
+**その次の要求から**締め出し中は 423 を返す（再確認も同じ）。締め出しの期間は設定による
+（Q は既定 15 分、外部設定は不可。6.4）。
+根拠: `Q.Web/Services/AdminAuthenticator.cs:154-165,452-465`、
+`Q.Web/Endpoints/AdminAuthEndpoints.cs:319-332`、`Q.Web/Endpoints/AdminUserEndpoints.cs:605-618`。
+
 認可の表記: 「公開」= 認証の外、「Pending」= 途中状態の cookie、「Session」= ログイン済みなら誰でも（`Admin.Session.Any`）、
 `users.read` などは権限（6 章）。
 
@@ -89,10 +95,12 @@ IdP の業務の入口（`/api/admin/oidc-clients/**`・`/saml-providers/**`・`
 ## 5.6 各アプリとの対応
 
 経路ごとの対応（同じ口があるか・形がどう違うか）は [各アプリの差異の一覧](各アプリの差異の一覧.md)の A.3 にまとめた。
-大きな差は次の 4 つ。
+大きな差は次の 5 つ。
 
 - **接頭辞**: AtomFeed・CalendarFeed は `/admin/api`。Q と IdP は `/api/admin`（`AF.Web/Endpoints/AdminAuthEndpoints.cs:40`）
 - **2 要素の登録**: AtomFeed・CalendarFeed は `/enroll/*` を持たず、`/me/totp/*` をログイン途中にも使う
   （`AF.Web/Endpoints/AdminAuthEndpoints.cs:563-589`）
 - **更新の方法**: AtomFeed・CalendarFeed は役割の変更が PUT、端末の失効が DELETE、成功の多くが 204
 - **IdP**: 管理者の管理・招待・2 要素の口は無い（Pleasanter で行う）
+- **締め出し**: Q は上限到達の失敗も 401、次の要求から 423。AF・CF のログインは締め出し中も 401、
+  IdP は上限到達の要求から 429 の画面（根拠と期間の差は 6.4・A.2）。統一は U3 の未決事項

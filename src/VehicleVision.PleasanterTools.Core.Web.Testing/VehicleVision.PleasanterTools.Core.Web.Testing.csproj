@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Web.Testing</PackageId>
+    <Description>管理画面の HTTP 契約をアプリに依存せず検証する xUnit の共有テスト。</Description>
+    <PackageTags>pleasanter;vehiclevision;testing;xunit;authentication</PackageTags>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+  </ItemGroup>
+</Project>
