@@ -44,7 +44,7 @@ Questionnaire ほか）が共通で使う、コア部分の実装。** アプリ
 
 - 言語・ランタイムは **Pleasanter 本体と各アプリに揃える**。`global.json` は各アプリと同じ値に保つ
   （`ci.yml` が一致を検査する）
-- 配布は **GitHub Packages**（`vehiclevisionjp`）。タグ `vX.Y.Z` で公開する
+- 配布は **nuget.org**（Trusted Publishing）。タグ `vX.Y.Z` で公開する
   （[`_documents/リリース手順書.md`](../_documents/リリース手順書.md)）
 - **コード・ドキュメント・応答はすべて日本語で書くこと。**
     - ⚠️ **例外は、コマンドラインがコンソールへ出す文字列だけ。英語で書く。**

@@ -49,13 +49,19 @@ nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Dat
 （`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0-preview.2" />
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0-preview.10" />
 ```
 
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`](_documents/リリース手順書.md)
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
-- 0.1.0-preview.1 だけは GitHub Packages にあります（認証が要る）。nuget.org へは preview.2 以降を出します
+- 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）。
+  nuget.org の公開済みの版は Mail・Data が preview.2〜10、Web は preview.10 が最初です
+  （2026-10-22 に各パッケージの版一覧を確認。[Mail][mail-versions] / [Data][data-versions] / [Web][web-versions]）
+
+[mail-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.mail/index.json
+[data-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.data/index.json
+[web-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web/index.json
 
 ## バージョン
 
