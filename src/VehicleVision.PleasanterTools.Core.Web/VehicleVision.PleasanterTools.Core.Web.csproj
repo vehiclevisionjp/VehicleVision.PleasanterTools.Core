@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>VehicleVision.PleasanterTools.Core.Web</PackageId>
-    <Description>VehicleVision.PleasanterTools 各アプリ共通の Web 層の部品（Pleasanter の本人確認、SSO・SAML の設定の読み取りと検証）。</Description>
+    <Description>VehicleVision.PleasanterTools 各アプリ共通の Web 層の部品（本人確認、認証設定、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表）。</Description>
     <PackageTags>pleasanter;vehiclevision;aspnetcore;sso;authentication</PackageTags>
   </PropertyGroup>
 
@@ -11,6 +11,10 @@
          **アプリ（ASP.NET Core）が持つ版をそのまま使う**ので、版の食い違いが起きず、NOTICE の行も増えない。
          Microsoft.NET.Sdk.Web にはしない（実行ファイルではなくライブラリのため） -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Otp.NET" />
   </ItemGroup>
 
   <ItemGroup>

@@ -71,7 +71,7 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 |---|---|
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
-| `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証 |
+| `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表 |
 | `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は preview.11 公開済み、追加の安全性契約は未公開 |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
@@ -140,6 +140,21 @@ DB の待機は `--wait-for-db=N`、ロックの待機は `RunAsync` の `lockTi
 
 **今回は Core のみを実装しています。各アプリの置き換えは preview.12 公開後の別作業です。**
 この変更自体はタグを付けず、公開しません。
+
+### 認証の基盤（未公開、Issue #92）
+
+パスワード・TOTP・秘密の暗号化は、**既存の受理条件と保存書式を保つ互換方式を必須引数で選びます**。
+例えば `new PasswordHasher(PasswordHashCompatibility.Strict64)` は 64 バイトの既存形式、
+`Delimited32` は 32 バイトの既存形式を扱います。同じ `v1` でも相互に受け入れません。
+
+`RecoveryCode` は塩つき PBKDF2、`InvitationToken` は小文字 16 進の SHA-256、
+`AdminPermissions<TRole>` はアプリから渡された表だけを扱います。
+鍵の自動生成・アプリの役割・環境変数名・認証の入口は持ちません。
+旧 SHA-256 復旧コードは再発行、旧 Base64 招待は再招待で移行し、旧形式へのフォールバックは残しません。
+
+**今回の変更では各アプリを置換せず、マージ・公開もしません。**
+互換方式の選び方と公開後の追随手順は
+[Core.Web 共通化の方針](_documents/Core.Web-共通化の方針.md#認証の基盤の共通化issue-92)を参照してください。
 
 ## 配布と参照（nuget.org）
 
