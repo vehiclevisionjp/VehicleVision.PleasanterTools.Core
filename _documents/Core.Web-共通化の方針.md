@@ -33,7 +33,7 @@ Issue #74 が本人確認の第 1 段階、Issue #83 が設定とマイグレー
 | `MigrationCommand.cs` | ① Q だけ `--migrate-status`（未適用ありは終了コード 1）<br>② Q は未適用一覧と適用件数、A/C は適用済みの表示だけ<br>③ Q は固定 300 秒、A は `AppDatabase` の既定、C は引数 | **第 2 段階で Core.Data へ。** Q の出力・引数へ統一する判断は 2026-10-22 に承認済み。ロック待機は引数で受ける |
 
 「やや似ている」ファイル（`PasswordHasher`・`AdminPasswordPolicy`・`SecretProtector`・`ParameterFiles`。正規化した類似度 0.3〜0.45）は、
-第 2 段階の対象外。後述の Issue #92 で再比較し、互換方式を明示できる部分だけを実装した。
+第 2 段階の対象外。後述の Issue #92 で再比較して実装し、Issue #99 で保存値の読み取りを統合した。
 
 ## Core.Web の公開 API
 
@@ -262,10 +262,11 @@ Core 側の出力・終了コード・状態確認の副作用は
 
 ## 認証の基盤の共通化（Issue #92）
 
-**今回は Core だけを変更する。未公開であり、タグ付け・アプリの置き換えはしない。**
-既存の受理／拒否を保つため、暗号・ハッシュ・TOTP の互換方式はコンストラクターの必須引数とした。
-方式の自動判別や、別方式を順番に試すフォールバックは入れない。
-暗号アルゴリズムそのものは同じであり、既存方式を明示すれば互換を保てる。
+**今回は Core だけを変更し、タグ付け・アプリの置き換え・マージはしない。**
+Issue #95 で導入した互換方式の enum は、2026-10-26 のユーザー決定（Issue #99）により廃止する。
+**読むのは既存の保存値すべて、書くのは新しい 1 方式**へ統合する。
+preview.14 の API を使うアプリはまだなく、preview.15 向けの破壊的変更として扱う。
+保存値の長さ・版で読み取り方を決め、復号に失敗しても別書式として試し直さない。
 
 ### 比較の根拠と意味のある差
 
@@ -298,11 +299,11 @@ Core 側の出力・終了コード・状態確認の副作用は
 
 | 候補 | A/C の差 | A/Q の比率 | 意味のある差と判断 |
 |---|---|---|---|
-| `PasswordHasher` | なし（1.000） | 0.422 | **移した。** A/C は出力 64 バイト、Q は 32 バイト。同じ `v1` でも互換ではない。A/C は空パスワードを生成可能、回数は符号・空白を拒否、塩は非空・ハッシュ長は固定。Q は空パスワードを拒否、回数の符号・空白を受理、長さを事前検査しない。方式別に検査と導出を保つ |
+| `PasswordHasher` | なし（1.000） | 0.422 | **移した。** 旧 A/C は 64 バイト、Q は 32 バイト。PBKDF2-SHA512 の 32 バイトは 64 バイトの先頭と一致する。Issue #99 で保存値の長さによる照合に統合し、新規は 64 バイト。空パスワードを拒否、回数は符号・空白なしの正数、塩は非空へ統一 |
 | `AdminPasswordPolicy` | なし（1.000） | 0.331 | **保留。** A/C は上限 256、Q は上限なし。空の扱い・ログイン ID が空の条件も異なる。A/C は文言がなければ先頭も使い、Q は言語正規化後に一致／指定なしを選ぶ。正規表現の方式は共通でも、今回未決の上限・文言を揃えない |
-| `Totp` / `TotpService` | なし（1.000） | 0.246 | **移した。** 計算は同じ Otp.NET、20 バイト・6 桁・30 秒・SHA-1・前後 1 枠。A/C は数字以外を全除去、壊れた Base32 は例外。Q は前後の空白だけを除去し、Base32 の `ArgumentException` は拒否。登録 URI は A/C の要素別エスケープと Q のラベル全体の URL エンコードで違う。時刻は Core の引数にする |
-| 復旧コード（上記ファイル内） | なし | 上記に含む | **U12 で移した。** A/C は L を含む 32 文字種・SHA-256、Q は L も除く 31 文字種・32 バイトの PBKDF2。新規発行を Q 方式に統一し、Q の文字ごとの大文字化も維持する。旧 SHA-256 は受理しない |
-| `SecretProtector` | なし（1.000） | 0.394 | **移した。** AES-256-GCM、nonce 12・tag 16 は共通。A/C は `v1:` と結合 Base64、文脈必須で失敗は例外。Q は `$` 区切りの `v1`（AAD なし）／`v2`（文脈を AAD にする）、失敗は null。Q の旧 v1 を文脈つき入口でも読む従来動作を保つ |
+| `Totp` / `TotpService` | なし（1.000） | 0.246 | **移した。** 計算は同じ Otp.NET、20 バイト・6 桁・30 秒・SHA-1・前後 1 枠。旧 A/C は数字以外を全除去、Q は前後空白だけを除去。Issue #99 で空白と ASCII ハイフンだけを除き ASCII 数字 6 桁を照合する。不正な Base32 は不一致、登録 URI は要素別エスケープへ統一。時刻は引数 |
+| 復旧コード（上記ファイル内） | なし | 上記に含む | **U12 で移した。** A/C は L を含む 32 文字種・SHA-256、Q は L も除く 31 文字種・32 バイトの PBKDF2。新規は同じ文字種・正規化のまま統合後の 64 バイト PBKDF2。既存の 32 バイトも照合する。旧 SHA-256 は受理しない |
+| `SecretProtector` | なし（1.000） | 0.394 | **移した。** AES-256-GCM、nonce 12・tag 16 は共通。旧 A/C の `v1:` は結合 Base64・文脈必須、Q の `v1$` は AAD なし、`v2$` は文脈を AAD にする。Issue #99 で 3 書式の読み取りを統合。新規は文脈必須の `v2$` のみ、失敗は旧 A/C も含め null |
 | `InviteTokens` / `InvitationToken` | なし（1.000） | 0.308 | **U5 で移した。** 32 バイトの base64url は同じ。Q は前後空白除去後に SHA-256 を Base64、A/C は空白を除去せず小文字 16 進。保存は小文字 16 進に統一し、空白除去は必須の `trim` 引数で分ける。A/C の 20〜100 文字の事前検査は任意の別メソッドとして残す |
 | `ParameterFiles` | 多数（0.388） | 0.443 | **保留。** 接頭辞と一覧だけでは吸収できない。秘密ファイルの対象・相対パス・空の直接指定・末尾改行の数・空白のパス・別名の衝突規則も違う（次節） |
 | `AdminPermissions` | なし（1.000） | 0.340 | **表の仕組みだけ移した。** A/C は大小を区別する文字列、Q は列挙。Q の文字列解釈は定義された数値や一部の複合表記も通し得るため、解釈はアプリに残す。権限名は Ordinal、未知の役割は空という共通の表引きだけを汎用化した |
@@ -335,30 +336,60 @@ Core 側の出力・終了コード・状態確認の副作用は
 未翻訳時の `en` → `ja` を契約にする。Q の `LocalizedText` と A/C の表引きとの境界、
 `Accept-Language` の品質値の扱いを比較してから採否を決める。**今回は API も依存も追加しない。**
 
-### 公開 API と既存動作を保つ受け渡し
+### 公開 API と統合後の受け渡し
 
 以下は `VehicleVision.PleasanterTools.Core.Web` 名前空間。Core.Web と Core.Data は互いに参照しない。
 
 | 型／入口 | 渡すものと用途 |
 |---|---|
-| `new PasswordHasher(PasswordHashCompatibility)` | A/C は `Strict64`、Q は `Delimited32`。`Hash(password, iterations = 210000)`・`Verify(password, stored)`（成功と再ハッシュの tuple）・`NeedsRehash(stored)`。捨てハッシュはアプリが起動時に 1 回生成する |
-| `new TotpService(TotpCompatibility)` | A/C は `DigitsOnly`、Q は `Trimmed`。`GenerateSecret()`・`BuildUri(issuer, loginId, secret)`・`Verify(secret, code, utcNow)`（成功と時間枠の tuple）。Q は従来どおり現在 UTC を渡す |
-| `new SecretProtector(base64Key, SecretProtectionCompatibility)` | A/C は `PackedV1`、Q は `DelimitedV2`。`Protect(plain, context)`・`Unprotect(cipher, context)`。文脈なしの overload は Q の既存用途だけ。`DecodeKey`・明示的な `GenerateKey`。設定名は保持せず、アプリで例外へ添える |
-| `RecoveryCode` | `Count`・`Generate`・`Normalize`・`Hash`・`Verify(code, stored)`。PBKDF2-SHA512・210000 回・塩 16・導出 32 バイト。使い切りの DB 更新やレート制限はアプリに残す |
+| `new PasswordHasher()` | `Hash(password, iterations = 210000)`・`Verify(password, stored)`（成功と再ハッシュの tuple）・`NeedsRehash(stored)`。32・64 バイトを照合、新規は 64 バイト。捨てハッシュはアプリが起動時に 1 回生成する |
+| `new TotpService()` | `GenerateSecret()`・`BuildUri(issuer, loginId, secret)`・`Verify(secret, code, utcNow)`（成功と時間枠の tuple）。空白・ASCII ハイフンだけを除去。URI は `Uri.EscapeDataString` で要素別に符号化 |
+| `new SecretProtector(base64Key)` | `Protect(plain, context)`・`Unprotect(cipher, context)`。新規は文脈必須の `v2$`。3 書式を読み、復号失敗は null。文脈なしの overload は廃止。`DecodeKey`・明示的な `GenerateKey` は維持。設定名はアプリで例外へ添える |
+| `RecoveryCode` | `Count`・`Generate`・`Normalize`・`Hash`・`Verify(code, stored)`。新規は PBKDF2-SHA512・210000 回・塩 16・導出 64 バイト、既存 32 バイトも検証。使い切りの DB 更新やレート制限はアプリに残す |
 | `InvitationToken` | `Create`・`Hash(token, trim)`・任意の `LooksValid`。ハッシュは小文字 16 進のみ。DB の検索や招待の寿命はアプリが担う |
 | `AdminPermissions<TRole>` | コンストラクターに役割から権限列への表と任意の役割比較器を渡す。表を不変に写し、`Of`・`Has`・静的な `PolicyOf` を提供。役割・権限名・既定の表は持たない |
 
-保存形式の自動的な相互受理はしない。`PasswordHasher` の 32 バイト方式は従来の KeyDerivation を使い、
-回数が 0 以下の保存値で例外になる動作も維持する。64 バイト方式はこの値を false にする。
-この非対称を「改善」として黙って変えない。
-反復回数の新しい上限や、既存の回数を引き上げる変更は入れていない。
+**パスワードの受理条件は厳しい側に統一する。**
+空・null は `Hash` で例外、`Verify` で `(false, false)`。
+保存値は `v1$反復$塩(Base64)$ハッシュ(Base64)` の 4 要素、
+反復は `NumberStyles.None` による 1 以上の整数（符号・空白なし）、塩は 1 バイト以上、
+ハッシュは 32 または 64 バイトに限る。不正な保存値は例外を出さず不一致にする。
+保存長で導出し定数時間比較する。照合成功、かつ「反復が 210000 未満またはハッシュが 32 バイト」なら
+`NeedsRehash = true`。失敗時は必ず false。
+`NeedsRehash(stored)` は同じ更新条件で、不正な保存値なら true。
+新規は PBKDF2-HMAC-SHA512・既定 210000 回・塩 16 バイト・ハッシュ 64 バイト。
+反復回数の新しい上限は設けず、既存の回数を一括変更しない。
 U10 の暗号方式に結び付く回数の設定対象は、11.9 にある追加判断のままとする。
 
-`SecretProtector.Unprotect` の戻り値は nullable。`PackedV1` は成功なら非 null、失敗なら例外。
-Q の復号失敗は null のまま。Core.Data の `ISecretCipher` とのアダプター、鍵未設定時の実装、
+**TOTP** は空白（`char.IsWhiteSpace`）と ASCII の `-` を除去後、ちょうど 6 桁の ASCII 数字だけを照合する。
+空・不正な Base32 共有鍵や不一致は例外を出さず `(false, 0)`。
+前後 1 ステップ、成功時の `TimeStep` と再使用防止の責務は変えない。
+URI は `otpauth://totp/{issuer}:{loginId}?secret=…&issuer=…&algorithm=SHA1&digits=6&period=30`。
+発行者とログイン ID はそれぞれ `Uri.EscapeDataString` で符号化する。
+
+**暗号の読み取りと書き込み:**
+
+| 書式 | 読み取り時の AAD | 新規書き込み |
+|---|---|---|
+| `v1:` + Base64(nonce12 \| tag16 \| cipher)（旧 A/C） | context 必須 | しない |
+| `v1$nonce$tag$cipher`（旧 Q） | なし。context は空・null でも読める | しない |
+| `v2$nonce$tag$cipher` | context 必須 | これだけ。各要素は Base64 |
+
+鍵は引数の Base64・32 バイトを維持する。context は既存の同じ値を渡す。
+`Unprotect` は null・空・不明な書式・壊れた暗号文・復号失敗・文脈不一致をすべて null にする。
+`v1:` と `v2$` は context が空・null でも null。呼び出し側は必ず null を失敗として扱う。
+`Protect` は空・null の context を例外で拒否し、文脈なしの入口を提供しない。
+Core.Data の `ISecretCipher` とのアダプター、鍵未設定時の実装、
 設定の例外の翻訳・鍵の保存先・生成コマンドはアプリに残す。
 **U11 に従い、Core はコンストラクターでも起動時でも鍵を作らない。**
-Q の文脈なしの旧 v1 を v2 へ強制変換する処理も、この変更には含めない。
+一括変換はせず、既存の 3 書式はそのまま読み、アプリが再保存するときに `v2$` を書く。
+
+根拠（2026-10-26 参照）: `src/VehicleVision.PleasanterTools.Core.Web/` の
+`PasswordHasher.cs:7-78`・`TotpService.cs:6-56`・`SecretProtector.cs:7-107`・`RecoveryCode.cs:6-36`。
+固定値と境界の検査は `tests/VehicleVision.PleasanterTools.Core.Web.Tests/` の
+`AuthenticationCompatibilityValues.cs` と各部品の `*Tests.cs`。
+Base32 の受理条件は [Otp.NET 1.4.1 の実装][otp-base32]（2026-10-26 参照）も確認した。
+同ライブラリが切り捨てる不完全な末尾・余分なパディングは、再符号化の一致検査で拒否する。
 
 Otp.NET は各アプリと同じ 1.4.1 を採用した。MIT は [上流の許諾][otp-license]で確認し、
 `NOTICE` と中央の依存一覧へ記載した。PBKDF2 と AES-GCM に追加パッケージは使わない。
@@ -366,20 +397,24 @@ Otp.NET は各アプリと同じ 1.4.1 を採用した。MIT は [上流の許�
 ### 公開後の各アプリの追随と U5・U12
 
 **Core を実装しただけでは、各アプリの差は解消していない。** 追随の記録先は Issue #92。
-公開する版は今回決めず、タグも作らない。
+preview.15 の公開後に各アプリで追随する。今回はタグも作らない。
 
 1. A/C/Q は公開後に Core.Web を他の Core パッケージと同じ版へ上げる。
-   上表の互換方式で登録し、既存の API を保つ薄いアダプターから置き換える。
-   特に Q の tuple と A/C の bool／`out`、暗号の例外と null、アプリのログカテゴリを黙って変えない。
-2. パスワードの既存値は変換しない。A/C の捨てハッシュ・再ハッシュ判定と、
-   Q の成功時だけの再ハッシュを保つ。Core の方式を変えて全形式を受け入れる方法は採らない。
+   ハッシュと TOTP は引数なし、暗号は鍵だけで登録し、方式の enum は渡さない。
+   tuple と bool／`out` の写し替え、ログカテゴリの維持はアプリの薄いアダプターに残す。
+   A/C は復号例外の catch だけに頼らず、null を明示的な失敗として判定する。
+2. パスワードの既存値は一括変換しない。照合成功時の `NeedsRehash` で現行回数・64 バイトへ更新する。
+   32 バイトは回数が現行以上でも更新対象。A/C の捨てハッシュは空でない合成値で起動時に作る。
+   空パスワード・反復の符号や空白は受理しないことをアプリの契約試験でも固定する。
 3. 暗号鍵と、`<appId>:totp:<管理者 ID>` などの文脈をそのまま渡す。
    `ISecretCipher` のアダプターはアプリに残す。A/C の `IsConfigured` はアプリ側で保つ。
    Q の文脈なし v1・文脈つき v2、A/C の v1: は既存鍵で読める。鍵を新規生成して移行しない。
+   文脈なしの呼び出しを廃止し、以後の保存はすべて文脈必須の `v2$` にする。
+   旧 `v1$` は読めても AAD がない点は変わらない。再保存時から文脈の保護が有効になる。
 4. **U5:** A/C は `trim: false`、Q は `trim: true`。小文字 16 進だけで検索する。
    Q の旧 Base64 招待の読み取り・フォールバックは残さない。
    旧未使用招待を取り消し、必要な相手へ再招待する。A/C の既存の小文字 16 進招待は維持する。
-5. **U12:** Q の既存 PBKDF2 はそのまま検証できる。
+5. **U12:** Q の既存 32 バイト PBKDF2 復旧コードはそのまま検証でき、新規は 64 バイトになる。
    A/C の旧 SHA-256 は検証しない。本人確認済みの再発行で新しい 10 本へ置き換える。
    L を除く新しい文字種へ揃える点も変更点。旧ハッシュを PBKDF2 に変換したことにして残さない。
    U7・U13 の再確認と管理者の救済経路を確保してから、旧コードを破棄する。
@@ -387,6 +422,8 @@ Otp.NET は各アプリと同じ 1.4.1 を採用した。MIT は [上流の許�
    一致した**保存ハッシュそのもの**を使って `TryUseRecoveryCodeAsync` を原子的に実行する。
    入力のハッシュを毎回作って直接検索する A/C の旧経路は置換が必要。
    TOTP の時間枠の再使用防止も引き続きストアが担う。
+   入力は空白・ASCII ハイフンだけを除去し、英字混入・非 ASCII 数字を拒否する。
+   Q の登録 URI は要素別エスケープへ変わることも試験する。
 7. 権限は A/C で Ordinal の文字列表、Q で列挙の表を渡す。
    Q の `Enum.TryParse` と `Enum.IsDefined` はそのままアダプターに残す。
    表の内容・認可フィルター・claim の構築は移さず、アプリの固有権限テストを残す。
@@ -408,14 +445,17 @@ Otp.NET は各アプリと同じ 1.4.1 を採用した。MIT は [上流の許�
   Q の `Hash(RecoveryCode.Normalize("ABCDE-FGHJK"))` を実行して保存値を採取した。
   AES は 0〜31 の 32 バイトを Base64 にした鍵、固定の文脈と Base32 平文で、
   A の `Protect(plain, context)` と Q の `Protect(plain)`／`Protect(plain, context)` を実行した。
-- A の TOTP は UTC `2026-10-22 09:00:00` で `Compute` した `221236` を固定した。
-  新実装で時間枠・前後 1 枠・範囲外・入力整形の差を確認する。
+- A/C/Q で同じ計算になる TOTP は、A の UTC `2026-10-22 09:00:00` の `Compute` 出力 `221236` を固定した。
+  時刻とコードは同じ固定値ファイルに置き、時間枠・前後 1 枠・範囲外・統合後の入力整形を確認する。
   招待と旧 SHA-256 復旧コードも、元の `Hash`／`HashOf` の出力を固定した。
-- 固定値で成功することだけでなく、誤入力・別の鍵・別の文脈・方式違い・改ざんを拒否すること、
+- 固定値は Issue #99 でも再生成せず維持し、32・64 バイトと暗号 3 書式を同じ入口で検証する。
+  復旧コードの既存 32 バイトの検証も固定する。
+- 固定値で成功することだけでなく、誤入力・別の鍵・別の文脈・改ざんを拒否すること、
   U5 の旧 Base64 と U12 の旧 SHA-256 を受け入れないことを検査する。
-  新生成値を元実装が読み取れることも、一時的な新旧直接比較で確認した。
+  Issue #95 時点では、新生成値を元実装が読み取れることも一時的な新旧直接比較で確認した。
+  Issue #99 以後は書き込み形式が変わるため、旧版へのロールバックや混在配備を前提にしない。
 
-### この作業の検証結果（2026-10-22）
+### 初回共通化の検証結果（2026-10-22、Issue #95 時点）
 
 - 新旧直接比較は 376 ケースで一致。ハッシュの照合結果と例外、暗号の文脈・書式・失敗、
   TOTP の整形と時間枠、新生成値を旧実装で読む方向を検査した。
@@ -434,6 +474,21 @@ Otp.NET は各アプリと同じ 1.4.1 を採用した。MIT は [上流の許�
   Markdown の依存が未復元だったため `npm ci --ignore-scripts` 後に検査した。
 - Code Integrity の実行拒否は発生せず、短いパスへの複製は不要だった。
 
+### 1 方式への統合の検証結果（2026-10-26、Issue #99）
+
+- `dotnet build -c Release` は警告 0・エラー 0。
+  `dotnet test -c Release` は全 702 件成功、失敗・スキップ 0（Mail 45・Data 103・Web 554）。
+  変更したハッシュ・TOTP・暗号・復旧コードの試験は 125 件成功。
+- 固定値による 32・64 バイトのパスワード、既存 32 バイトの復旧コード、
+  `v1:`・`v1$`・`v2$` の復号と TOTP を確認した。
+  新規出力の長さ・書式、更新条件、入力の境界、文脈不一致、鍵違い、各構成要素の改ざんも検査した。
+- `npm run lint:md` は 23 ファイル・エラー 0。
+  未復元の依存があったため、`npm ci --ignore-scripts --no-audit --no-fund` 後に成功した。
+  `bash scripts/sync-agents.sh --check`・`bash scripts/notice-check.sh`・`git diff --check` も成功。
+  依存の追加・更新はなく、NOTICE の変更は不要。
+- DB の検証は一時 SQLite のみ。外部 RDBMS の接続設定はなく、各アプリの結合試験や実機検証は行っていない。
+  他リポジトリの変更、タグ付け、公開、マージは行わない。
+
 ### 残りの課題と未確認
 
 パスワード条件・秘密ファイルの互換契約、メッセージの仕組みの採否は保留。
@@ -448,3 +503,4 @@ U10 の反復回数の範囲、U5/U12 の通知・救済・混在しない配備
 [auth-c-web]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.CalendarFeed/tree/b3b265297bbd09a3d60cc7c08bd7e8de99882bed/src/VehicleVision.PleasanterTools.CalendarFeed.Web
 [auth-q-web]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Questionnaire/tree/33d77eb7247340fd682c08c78845e0e29b94df74/src/VehicleVision.PleasanterTools.Questionnaire.Web
 [otp-license]: https://github.com/kspearrin/Otp.NET/blob/master/LICENSE.txt
+[otp-base32]: https://github.com/kspearrin/Otp.NET/blob/v1.4.1/src/Otp.NET/Base32Encoding.cs

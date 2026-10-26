@@ -2,7 +2,8 @@ namespace VehicleVision.PleasanterTools.Core.Web.Tests;
 
 /// <summary>
 /// 2026-10-22 に既存 origin/develop の実装を実行して得た値。鍵と入力は試験専用。
-/// 出典のコミットと生成手順は「Core.Web-共通化の方針」の Issue #92 の節。
+/// A/C の同一実装と Q の保存書式を、方式指定なしで読み取れることを固定する。
+/// 出典のコミットと生成手順は「Core.Web-共通化の方針」の Issue #92・#99 の節。
 /// </summary>
 internal static class AuthenticationCompatibilityValues
 {
@@ -10,6 +11,9 @@ internal static class AuthenticationCompatibilityValues
     public const string Key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
     public const string Secret = "JBSWY3DPEHPK3PXP";
     public const string Context = "example:totp:00000000-0000-0000-0000-000000000001";
+    public static readonly DateTime TotpUtcNow = new(2026, 10, 22, 9, 0, 0, DateTimeKind.Utc);
+    public const string TotpCode = "221236";
+    // 既存の保存値。以後は 64 バイトで書くが、32・64 バイトの固定値は置き換えない。
     public const string Hash32 =
         "v1$210000$/7zF8aCjaXYAs55fxPNzeQ==$y3H6L19StislZOjF8S70N7Zjh5oY48kSNzy4S/UgZwg=";
     public const string Hash64 =
