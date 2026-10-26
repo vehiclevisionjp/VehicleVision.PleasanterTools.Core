@@ -1,135 +1,141 @@
-using System.Security.Cryptography;
-
 namespace VehicleVision.PleasanterTools.Core.Web.Tests;
 
 public sealed class SecretProtectorTests
 {
-    private static SecretProtector Create(SecretProtectionCompatibility compatibility) =>
-        new(AuthenticationCompatibilityValues.Key, compatibility);
+    private readonly SecretProtector protector = new(AuthenticationCompatibilityValues.Key);
+    private const string Context = AuthenticationCompatibilityValues.Context;
 
     [Theory]
-    [InlineData(SecretProtectionCompatibility.PackedV1, AuthenticationCompatibilityValues.Packed)]
-    [InlineData(SecretProtectionCompatibility.DelimitedV2, AuthenticationCompatibilityValues.DelimitedV2)]
-    public void 既存の文脈つき暗号文を同じ鍵と文脈だけで読める(
-        SecretProtectionCompatibility compatibility, string stored)
+    [InlineData(AuthenticationCompatibilityValues.Packed)]
+    [InlineData(AuthenticationCompatibilityValues.DelimitedV2)]
+    public void 既存の文脈つき暗号文を同じ鍵と文脈だけで読める(string stored)
     {
-        var protector = Create(compatibility);
+        Assert.Equal(AuthenticationCompatibilityValues.Secret, protector.Unprotect(stored, Context));
+        Assert.Null(protector.Unprotect(stored, "wrong"));
+        Assert.Null(protector.Unprotect(stored, null));
+        Assert.Null(protector.Unprotect(stored, ""));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("different")]
+    [InlineData(Context)]
+    public void 旧v1区切り暗号文だけは文脈を問わず読める(string? context)
+    {
         Assert.Equal(AuthenticationCompatibilityValues.Secret,
-            protector.Unprotect(stored, AuthenticationCompatibilityValues.Context));
-        if (compatibility == SecretProtectionCompatibility.PackedV1)
-        {
-            Assert.ThrowsAny<CryptographicException>(() => protector.Unprotect(stored, "wrong"));
-            Assert.Throws<ArgumentNullException>(() => protector.Unprotect(stored, null));
-        }
-        else
-        {
-            Assert.Null(protector.Unprotect(stored, "wrong"));
-            Assert.Null(protector.Unprotect(stored, null));
-        }
+            protector.Unprotect(AuthenticationCompatibilityValues.DelimitedV1, context));
+    }
+
+    [Theory]
+    [InlineData("日本語🗓️のキー")]
+    [InlineData("")]
+    [InlineData("secret")]
+    public void 新規は文脈つきv2だけで書き毎回異なる値になる(string plain)
+    {
+        var cipher = protector.Protect(plain, Context);
+        var parts = cipher.Split('$');
+        Assert.Equal(4, parts.Length);
+        Assert.Equal("v2", parts[0]);
+        Assert.Equal(12, Convert.FromBase64String(parts[1]).Length);
+        Assert.Equal(16, Convert.FromBase64String(parts[2]).Length);
+        Assert.Equal(System.Text.Encoding.UTF8.GetByteCount(plain), Convert.FromBase64String(parts[3]).Length);
+        Assert.Equal(plain, protector.Unprotect(cipher, Context));
+        Assert.NotEqual(cipher, protector.Protect(plain, Context));
+        Assert.Null(protector.Unprotect(cipher, "different"));
+        Assert.Null(protector.Unprotect(cipher, null));
+        Assert.Null(protector.Unprotect(cipher, ""));
+        Assert.Null(protector.Unprotect(cipher.Replace("v2$", "v1$", StringComparison.Ordinal), Context));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void 新規の暗号化は文脈を必須にする(string? context)
+    {
+        Assert.ThrowsAny<ArgumentException>(() => protector.Protect("secret", context!));
     }
 
     [Fact]
-    public void 旧v1の文脈なし暗号文は文脈を問わず読めるが別方式には渡さない()
+    public void nullの平文は拒否する()
     {
-        var protector = Create(SecretProtectionCompatibility.DelimitedV2);
-        Assert.Equal(AuthenticationCompatibilityValues.Secret,
-            protector.Unprotect(AuthenticationCompatibilityValues.DelimitedV1));
-        Assert.Equal(AuthenticationCompatibilityValues.Secret,
-            protector.Unprotect(AuthenticationCompatibilityValues.DelimitedV1, "different"));
-        Assert.ThrowsAny<CryptographicException>(() => Create(SecretProtectionCompatibility.PackedV1)
-            .Unprotect(AuthenticationCompatibilityValues.DelimitedV1, "ctx"));
-        Assert.Null(protector.Unprotect(AuthenticationCompatibilityValues.Packed, "ctx"));
+        Assert.Throws<ArgumentNullException>(() => protector.Protect(null!, Context));
     }
 
     [Theory]
-    [InlineData(SecretProtectionCompatibility.PackedV1, "v1:")]
-    [InlineData(SecretProtectionCompatibility.DelimitedV2, "v2$")]
-    public void 日本語と空を含め暗号化復号でき毎回違う値になる(
-        SecretProtectionCompatibility compatibility, string prefix)
-    {
-        var protector = Create(compatibility);
-        foreach (var plain in new[] { "日本語🗓️のキー", "", "secret" })
-        {
-            var cipher = protector.Protect(plain, "ctx");
-            Assert.StartsWith(prefix, cipher, StringComparison.Ordinal);
-            Assert.Equal(plain, protector.Unprotect(cipher, "ctx"));
-            Assert.NotEqual(cipher, protector.Protect(plain, "ctx"));
-        }
-    }
-
-    [Fact]
-    public void 文脈を省略できるのは既存の区切り書式だけ()
-    {
-        var delimited = Create(SecretProtectionCompatibility.DelimitedV2);
-        var cipher = delimited.Protect("secret");
-        Assert.StartsWith("v1$", cipher, StringComparison.Ordinal);
-        Assert.Equal("secret", delimited.Unprotect(cipher));
-        Assert.Throws<InvalidOperationException>(() => Create(SecretProtectionCompatibility.PackedV1).Protect("x"));
-        Assert.Throws<InvalidOperationException>(() => Create(SecretProtectionCompatibility.PackedV1).Unprotect("x"));
-    }
-
-    [Theory]
+    [InlineData(null)]
     [InlineData("")]
     [InlineData("plain")]
     [InlineData("v2:AAAA")]
     [InlineData("v1:!!!")]
     [InlineData("v1:AAAA")]
+    [InlineData("v1:")]
     [InlineData("v1$AA==$AA==$AA==")]
     [InlineData("v2$AA==$AA==$AA==")]
-    public void 壊れた値は既存方式どおりの失敗になる(string stored)
+    [InlineData("v1$!!!$!!!$!!!")]
+    [InlineData("v2$!!!$!!!$!!!")]
+    [InlineData("v1$$$")]
+    [InlineData("v2$$$")]
+    [InlineData("v2$AA==$AA==$AA==$extra")]
+    [InlineData("v3$AA==$AA==$AA==")]
+    public void 不正な保存値は例外にせずnullを返す(string? stored)
     {
-        var packed = Create(SecretProtectionCompatibility.PackedV1);
-        if (stored.Length == 0)
-        {
-            Assert.Throws<ArgumentException>(() => packed.Unprotect(stored, "ctx"));
-        }
-        else
-        {
-            Assert.ThrowsAny<CryptographicException>(() => packed.Unprotect(stored, "ctx"));
-        }
-
-        Assert.Null(Create(SecretProtectionCompatibility.DelimitedV2).Unprotect(stored, "ctx"));
+        Assert.Null(protector.Unprotect(stored, Context));
     }
 
     [Theory]
-    [InlineData(SecretProtectionCompatibility.PackedV1)]
-    [InlineData(SecretProtectionCompatibility.DelimitedV2)]
-    public void 別の鍵と改ざんを拒否する(SecretProtectionCompatibility compatibility)
+    [InlineData(AuthenticationCompatibilityValues.Packed)]
+    [InlineData(AuthenticationCompatibilityValues.DelimitedV1)]
+    [InlineData(AuthenticationCompatibilityValues.DelimitedV2)]
+    public void 旧3書式すべてで別の鍵とnonceとtagと暗号文の改ざんを拒否する(string stored)
     {
-        var protector = Create(compatibility);
-        var cipher = protector.Protect("secret", "ctx");
-        var differentKey = new SecretProtector(SecretProtector.GenerateKey(), compatibility);
-        string tampered;
-        if (compatibility == SecretProtectionCompatibility.PackedV1)
+        var differentKey = new SecretProtector(SecretProtector.GenerateKey());
+        Assert.Null(differentKey.Unprotect(stored, Context));
+        for (var component = 0; component < 3; component++)
         {
-            var raw = Convert.FromBase64String(cipher[3..]);
-            raw[^1] ^= 1;
-            tampered = "v1:" + Convert.ToBase64String(raw);
-            Assert.ThrowsAny<CryptographicException>(() => differentKey.Unprotect(cipher, "ctx"));
-            Assert.ThrowsAny<CryptographicException>(() => protector.Unprotect(tampered, "ctx"));
-        }
-        else
-        {
-            var parts = cipher.Split('$');
-            var raw = Convert.FromBase64String(parts[3]);
-            raw[^1] ^= 1;
-            parts[3] = Convert.ToBase64String(raw);
-            tampered = string.Join('$', parts);
-            Assert.Null(differentKey.Unprotect(cipher, "ctx"));
-            Assert.Null(protector.Unprotect(tampered, "ctx"));
+            string tampered;
+            if (stored.StartsWith("v1:", StringComparison.Ordinal))
+            {
+                var raw = Convert.FromBase64String(stored[3..]);
+                raw[component switch { 0 => 0, 1 => 12, _ => 28 }] ^= 1;
+                tampered = "v1:" + Convert.ToBase64String(raw);
+            }
+            else
+            {
+                var parts = stored.Split('$');
+                var raw = Convert.FromBase64String(parts[component + 1]);
+                raw[0] ^= 1;
+                parts[component + 1] = Convert.ToBase64String(raw);
+                tampered = string.Join('$', parts);
+            }
+
+            Assert.Null(protector.Unprotect(tampered, Context));
         }
     }
 
     [Theory]
+    [InlineData(AuthenticationCompatibilityValues.Packed)]
+    [InlineData(AuthenticationCompatibilityValues.DelimitedV1)]
+    [InlineData(AuthenticationCompatibilityValues.DelimitedV2)]
+    public void 旧保存値を読み直して保存すると文脈必須のv2になる(string stored)
+    {
+        var plain = protector.Unprotect(stored, Context);
+        Assert.NotNull(plain);
+        var updated = protector.Protect(plain, Context);
+        Assert.StartsWith("v2$", updated, StringComparison.Ordinal);
+        Assert.Equal(AuthenticationCompatibilityValues.Secret, protector.Unprotect(updated, Context));
+        Assert.Null(protector.Unprotect(updated, "different"));
+    }
+
+    [Theory]
+    [InlineData(null)]
     [InlineData("not base64 !!")]
     [InlineData("AAAA")]
     [InlineData("")]
-    public void 未設定や短い鍵を自動生成で補わない(string key)
+    [InlineData(" ")]
+    public void 未設定や短い鍵を自動生成で補わない(string? key)
     {
-        foreach (var compatibility in Enum.GetValues<SecretProtectionCompatibility>())
-        {
-            Assert.ThrowsAny<ArgumentException>(() => new SecretProtector(key, compatibility));
-        }
+        Assert.ThrowsAny<ArgumentException>(() => new SecretProtector(key!));
     }
 
     [Fact]
@@ -138,7 +144,5 @@ public sealed class SecretProtectorTests
         var key = SecretProtector.GenerateKey();
         Assert.Equal(32, SecretProtector.DecodeKey(key).Length);
         Assert.NotEqual(key, SecretProtector.GenerateKey());
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new SecretProtector(key, (SecretProtectionCompatibility)99));
     }
 }
