@@ -7,7 +7,7 @@ public static class RecoveryCode
 {
     public const int Count = 10;
     private const string Alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-    private static readonly PasswordHasher Hasher = new(PasswordHashCompatibility.Delimited32);
+    private static readonly PasswordHasher Hasher = new();
 
     public static IReadOnlyList<string> Generate()
     {

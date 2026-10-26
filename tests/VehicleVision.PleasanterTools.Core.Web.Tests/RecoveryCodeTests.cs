@@ -17,8 +17,9 @@ public sealed class RecoveryCodeTests
     [InlineData("abcde-fghjk")]
     [InlineData("ABCDE FGHJK")]
     [InlineData("  ABCDE-FGHJK  ")]
-    public void 既存の塩つきハッシュを入力の揺れを吸収して照合する(string code)
+    public void 既存Delimited32の復旧コードを入力の揺れを吸収して照合する(string code)
     {
+        Assert.Equal(32, Convert.FromBase64String(AuthenticationCompatibilityValues.Recovery.Split('$')[3]).Length);
         Assert.Equal("ABCDEFGHJK", RecoveryCode.Normalize(code));
         Assert.True(RecoveryCode.Verify(code, AuthenticationCompatibilityValues.Recovery));
         Assert.False(RecoveryCode.Verify("ABCDE-FGHJL", AuthenticationCompatibilityValues.Recovery));
@@ -30,7 +31,7 @@ public sealed class RecoveryCodeTests
         var first = RecoveryCode.Hash("ABCDE-FGHJK");
         Assert.NotEqual(first, RecoveryCode.Hash("ABCDE-FGHJK"));
         Assert.StartsWith("v1$210000$", first, StringComparison.Ordinal);
-        Assert.Equal(32, Convert.FromBase64String(first.Split('$')[3]).Length);
+        Assert.Equal(64, Convert.FromBase64String(first.Split('$')[3]).Length);
         Assert.True(RecoveryCode.Verify("abcde fghjk", first));
         Assert.False(RecoveryCode.Verify("ABCDE-FGHJK", AuthenticationCompatibilityValues.OldRecoveryHash));
         Assert.False(RecoveryCode.Verify("", AuthenticationCompatibilityValues.Recovery));
