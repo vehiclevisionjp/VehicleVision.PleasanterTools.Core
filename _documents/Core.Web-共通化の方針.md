@@ -33,7 +33,7 @@ Issue #74 が本人確認の第 1 段階、Issue #83 が設定とマイグレー
 | `MigrationCommand.cs` | ① Q だけ `--migrate-status`（未適用ありは終了コード 1）<br>② Q は未適用一覧と適用件数、A/C は適用済みの表示だけ<br>③ Q は固定 300 秒、A は `AppDatabase` の既定、C は引数 | **第 2 段階で Core.Data へ。** Q の出力・引数へ統一する判断は 2026-10-22 に承認済み。ロック待機は引数で受ける |
 
 「やや似ている」ファイル（`PasswordHasher`・`AdminPasswordPolicy`・`SecretProtector`・`ParameterFiles`。正規化した類似度 0.3〜0.45）は、
-この段階の対象外。[`コア化の方針.md`](コア化の方針.md) の「セキュリティ」の行のとおり、配置も内容も別物で、機械的にはまとめられない。
+第 2 段階の対象外。後述の Issue #92 で再比較し、互換方式を明示できる部分だけを実装した。
 
 ## Core.Web の公開 API
 
@@ -259,3 +259,192 @@ Core 側の出力・終了コード・状態確認の副作用は
   テストの DB は一時 SQLite のみ。外部 DB の環境変数は未設定で、4 RDBMS を検証したという意味ではない。
   Code Integrity によるブロックは発生しなかったため、短いパスへの複製は不要だった
 - **確かめていない:** 実機の Pleasanter・IdP には当てていない。各アプリでの置き換え（ビルド・結合試験）は、公開後の各アプリの PR で行う
+
+## 認証の基盤の共通化（Issue #92）
+
+**今回は Core だけを変更する。未公開であり、タグ付け・アプリの置き換えはしない。**
+既存の受理／拒否を保つため、暗号・ハッシュ・TOTP の互換方式はコンストラクターの必須引数とした。
+方式の自動判別や、別方式を順番に試すフォールバックは入れない。
+暗号アルゴリズムそのものは同じであり、既存方式を明示すれば互換を保てる。
+
+### 比較の根拠と意味のある差
+
+2026-10-22 に、各ローカル `origin/develop` がリモートの `refs/heads/develop` と一致することを確認した。
+ソースを読み取り専用で取得し、アプリ名の大小文字を `APP` に置換して行単位の unified diff を取った。
+以下の比率は正規化した行列の `difflib.SequenceMatcher.ratio()`。**意味が同じことの証明ではない。**
+
+| 略記 | コミット（各アプリの `origin/develop`） |
+|---|---|
+| A | `236af9341ce9755e5773403db04469fa2804455c` |
+| C | `b3b265297bbd09a3d60cc7c08bd7e8de99882bed` |
+| Q | `33d77eb7247340fd682c08c78845e0e29b94df74` |
+
+出典は [A の Core][auth-a-core]・[A の Web][auth-a-web]・[C の Core][auth-c-core]・
+[C の Web][auth-c-web]・[Q の Web][auth-q-web]。参照日はすべて 2026-10-22。
+表のファイル名は各リンク先の `Security/`・`Admin/`・`Localization/`・`Services/` 配下を指す。
+
+主要な参照箇所（行番号は上記コミット）:
+
+| 部品 | A/C（Core、設定ファイルだけ Web） | Q（Web） |
+|---|---|---|
+| ハッシュ | `Security/PasswordHasher.cs:27-89` | `Services/PasswordHasher.cs:28-77` |
+| パスワード条件 | `Security/AdminPasswordPolicy.cs:40-128` | `Services/AdminPasswordPolicy.cs:89-192` |
+| TOTP／復旧コード | `Security/Totp.cs:26-86` | `Services/TotpService.cs:30-124` |
+| 暗号 | `Security/SecretProtector.cs:62-143` | `Services/SecretProtector.cs:40-167` |
+| 招待 | `Security/InviteTokens.cs:14-23` | `Services/InvitationToken.cs:26-40` |
+| 設定ファイル | `Services/ParameterFiles.cs`（A:220-286、C:244-289） | `Services/SecretFileConfigurationProvider.cs:25-109` |
+| 権限 | `Admin/AdminPermissions.cs:59-87` | `Services/AdminPermissions.cs:113-177` |
+| メッセージ | `Localization/ServerMessages.cs:26-76` | `Localization/ServerMessages.cs:139-174` |
+
+| 候補 | A/C の差 | A/Q の比率 | 意味のある差と判断 |
+|---|---|---|---|
+| `PasswordHasher` | なし（1.000） | 0.422 | **移した。** A/C は出力 64 バイト、Q は 32 バイト。同じ `v1` でも互換ではない。A/C は空パスワードを生成可能、回数は符号・空白を拒否、塩は非空・ハッシュ長は固定。Q は空パスワードを拒否、回数の符号・空白を受理、長さを事前検査しない。方式別に検査と導出を保つ |
+| `AdminPasswordPolicy` | なし（1.000） | 0.331 | **保留。** A/C は上限 256、Q は上限なし。空の扱い・ログイン ID が空の条件も異なる。A/C は文言がなければ先頭も使い、Q は言語正規化後に一致／指定なしを選ぶ。正規表現の方式は共通でも、今回未決の上限・文言を揃えない |
+| `Totp` / `TotpService` | なし（1.000） | 0.246 | **移した。** 計算は同じ Otp.NET、20 バイト・6 桁・30 秒・SHA-1・前後 1 枠。A/C は数字以外を全除去、壊れた Base32 は例外。Q は前後の空白だけを除去し、Base32 の `ArgumentException` は拒否。登録 URI は A/C の要素別エスケープと Q のラベル全体の URL エンコードで違う。時刻は Core の引数にする |
+| 復旧コード（上記ファイル内） | なし | 上記に含む | **U12 で移した。** A/C は L を含む 32 文字種・SHA-256、Q は L も除く 31 文字種・32 バイトの PBKDF2。新規発行を Q 方式に統一し、Q の文字ごとの大文字化も維持する。旧 SHA-256 は受理しない |
+| `SecretProtector` | なし（1.000） | 0.394 | **移した。** AES-256-GCM、nonce 12・tag 16 は共通。A/C は `v1:` と結合 Base64、文脈必須で失敗は例外。Q は `$` 区切りの `v1`（AAD なし）／`v2`（文脈を AAD にする）、失敗は null。Q の旧 v1 を文脈つき入口でも読む従来動作を保つ |
+| `InviteTokens` / `InvitationToken` | なし（1.000） | 0.308 | **U5 で移した。** 32 バイトの base64url は同じ。Q は前後空白除去後に SHA-256 を Base64、A/C は空白を除去せず小文字 16 進。保存は小文字 16 進に統一し、空白除去は必須の `trim` 引数で分ける。A/C の 20〜100 文字の事前検査は任意の別メソッドとして残す |
+| `ParameterFiles` | 多数（0.388） | 0.443 | **保留。** 接頭辞と一覧だけでは吸収できない。秘密ファイルの対象・相対パス・空の直接指定・末尾改行の数・空白のパス・別名の衝突規則も違う（次節） |
+| `AdminPermissions` | なし（1.000） | 0.340 | **表の仕組みだけ移した。** A/C は大小を区別する文字列、Q は列挙。Q の文字列解釈は定義された数値や一部の複合表記も通し得るため、解釈はアプリに残す。権限名は Ordinal、未知の役割は空という共通の表引きだけを汎用化した |
+| `ServerMessages` | 文言とキーに差（0.934） | 0.017 | **移さない。** A は 287 行、C は 289 行、Q は 1230 行（以前の記録の 1220 行から増加）。コード量の大半は文言。枠組みだけを分離する案は次節。Accept-Language の要求処理も今回は変更しない |
+
+### 保留したものと次の案
+
+`AdminPasswordPolicy` は、上限を nullable の引数、結果を「短い／長い／ID と同じ／規則番号」にし、
+文言の選択をアプリに残す分離なら可能。ただし現行の空入力や言語の解釈まで確認する契約が要る。
+今回は検証結果を変えないため、型も文言もアプリに残す。
+
+`ParameterFiles` は `_FILE` だけでも次の差がある。
+
+| 条件 | A | C | Q |
+|---|---|---|---|
+| 対象 | 接頭辞に一致する任意の名前（空の設定名は除外） | 既知の一覧だけ | 接頭辞に一致する任意の名前 |
+| 相対パス | 拒否 | 受理 | 拒否 |
+| 直接の値が空文字 | 同時指定として拒否 | 同時指定としない | 同時指定として拒否 |
+| ファイル指定が空白 | 無視 | 無視 | 読み取りを試み、絶対パスでないため拒否 |
+| 末尾の改行 | LF または CRLF を 1 個だけ除去 | CR と LF をすべて除去 | LF または CRLF を 1 個だけ除去 |
+| JSON の別名 | ファイル単位 | 複数ファイルを合成後に解釈、節単位の読み取りもある | ファイル単位、用途別ファイルもある |
+
+64 KiB の上限と、読めない・空のファイルを起動時に拒否する方針は共通。
+一覧・別名表だけを引数にした移植では既存の鍵のバイト列や衝突の結果まで変わり得る。
+将来は JSON と秘密ファイルを分離し、上表の検査と改行処理を独立した契約として先に固定する。
+互換方式を増やして丸ごと移すより、設定の責務を整理してからの分離を優先する。
+
+`ServerMessages` は文言を移さず、将来 `catalog`・言語正規化関数・fallback の順序を
+受け取る小さな解決器にする案。書式展開の `InvariantCulture`、未知のキーをキー自身で返す動作、
+未翻訳時の `en` → `ja` を契約にする。Q の `LocalizedText` と A/C の表引きとの境界、
+`Accept-Language` の品質値の扱いを比較してから採否を決める。**今回は API も依存も追加しない。**
+
+### 公開 API と既存動作を保つ受け渡し
+
+以下は `VehicleVision.PleasanterTools.Core.Web` 名前空間。Core.Web と Core.Data は互いに参照しない。
+
+| 型／入口 | 渡すものと用途 |
+|---|---|
+| `new PasswordHasher(PasswordHashCompatibility)` | A/C は `Strict64`、Q は `Delimited32`。`Hash(password, iterations = 210000)`・`Verify(password, stored)`（成功と再ハッシュの tuple）・`NeedsRehash(stored)`。捨てハッシュはアプリが起動時に 1 回生成する |
+| `new TotpService(TotpCompatibility)` | A/C は `DigitsOnly`、Q は `Trimmed`。`GenerateSecret()`・`BuildUri(issuer, loginId, secret)`・`Verify(secret, code, utcNow)`（成功と時間枠の tuple）。Q は従来どおり現在 UTC を渡す |
+| `new SecretProtector(base64Key, SecretProtectionCompatibility)` | A/C は `PackedV1`、Q は `DelimitedV2`。`Protect(plain, context)`・`Unprotect(cipher, context)`。文脈なしの overload は Q の既存用途だけ。`DecodeKey`・明示的な `GenerateKey`。設定名は保持せず、アプリで例外へ添える |
+| `RecoveryCode` | `Count`・`Generate`・`Normalize`・`Hash`・`Verify(code, stored)`。PBKDF2-SHA512・210000 回・塩 16・導出 32 バイト。使い切りの DB 更新やレート制限はアプリに残す |
+| `InvitationToken` | `Create`・`Hash(token, trim)`・任意の `LooksValid`。ハッシュは小文字 16 進のみ。DB の検索や招待の寿命はアプリが担う |
+| `AdminPermissions<TRole>` | コンストラクターに役割から権限列への表と任意の役割比較器を渡す。表を不変に写し、`Of`・`Has`・静的な `PolicyOf` を提供。役割・権限名・既定の表は持たない |
+
+保存形式の自動的な相互受理はしない。`PasswordHasher` の 32 バイト方式は従来の KeyDerivation を使い、
+回数が 0 以下の保存値で例外になる動作も維持する。64 バイト方式はこの値を false にする。
+この非対称を「改善」として黙って変えない。
+反復回数の新しい上限や、既存の回数を引き上げる変更は入れていない。
+U10 の暗号方式に結び付く回数の設定対象は、11.9 にある追加判断のままとする。
+
+`SecretProtector.Unprotect` の戻り値は nullable。`PackedV1` は成功なら非 null、失敗なら例外。
+Q の復号失敗は null のまま。Core.Data の `ISecretCipher` とのアダプター、鍵未設定時の実装、
+設定の例外の翻訳・鍵の保存先・生成コマンドはアプリに残す。
+**U11 に従い、Core はコンストラクターでも起動時でも鍵を作らない。**
+Q の文脈なしの旧 v1 を v2 へ強制変換する処理も、この変更には含めない。
+
+Otp.NET は各アプリと同じ 1.4.1 を採用した。MIT は [上流の許諾][otp-license]で確認し、
+`NOTICE` と中央の依存一覧へ記載した。PBKDF2 と AES-GCM に追加パッケージは使わない。
+
+### 公開後の各アプリの追随と U5・U12
+
+**Core を実装しただけでは、各アプリの差は解消していない。** 追随の記録先は Issue #92。
+公開する版は今回決めず、タグも作らない。
+
+1. A/C/Q は公開後に Core.Web を他の Core パッケージと同じ版へ上げる。
+   上表の互換方式で登録し、既存の API を保つ薄いアダプターから置き換える。
+   特に Q の tuple と A/C の bool／`out`、暗号の例外と null、アプリのログカテゴリを黙って変えない。
+2. パスワードの既存値は変換しない。A/C の捨てハッシュ・再ハッシュ判定と、
+   Q の成功時だけの再ハッシュを保つ。Core の方式を変えて全形式を受け入れる方法は採らない。
+3. 暗号鍵と、`<appId>:totp:<管理者 ID>` などの文脈をそのまま渡す。
+   `ISecretCipher` のアダプターはアプリに残す。A/C の `IsConfigured` はアプリ側で保つ。
+   Q の文脈なし v1・文脈つき v2、A/C の v1: は既存鍵で読める。鍵を新規生成して移行しない。
+4. **U5:** A/C は `trim: false`、Q は `trim: true`。小文字 16 進だけで検索する。
+   Q の旧 Base64 招待の読み取り・フォールバックは残さない。
+   旧未使用招待を取り消し、必要な相手へ再招待する。A/C の既存の小文字 16 進招待は維持する。
+5. **U12:** Q の既存 PBKDF2 はそのまま検証できる。
+   A/C の旧 SHA-256 は検証しない。本人確認済みの再発行で新しい 10 本へ置き換える。
+   L を除く新しい文字種へ揃える点も変更点。旧ハッシュを PBKDF2 に変換したことにして残さない。
+   U7・U13 の再確認と管理者の救済経路を確保してから、旧コードを破棄する。
+6. 復旧コードは未使用候補を `RecoveryCode.Verify` で順に照合し、
+   一致した**保存ハッシュそのもの**を使って `TryUseRecoveryCodeAsync` を原子的に実行する。
+   入力のハッシュを毎回作って直接検索する A/C の旧経路は置換が必要。
+   TOTP の時間枠の再使用防止も引き続きストアが担う。
+7. 権限は A/C で Ordinal の文字列表、Q で列挙の表を渡す。
+   Q の `Enum.TryParse` と `Enum.IsDefined` はそのままアダプターに残す。
+   表の内容・認可フィルター・claim の構築は移さず、アプリの固有権限テストを残す。
+8. 各アプリで既存 DB の読み取りと契約・結合試験を行い、#92 と移行状況へ結果を記録する。
+   旧版と新版を混在配備せず、旧形式の招待・復旧コードを書き戻すインスタンスを残さない。
+   IdP はローカル管理者・復旧コード・招待を持たないため、今回の置換対象に含めない。
+
+### 移植した試験と互換値の由来
+
+- A/C の `Core.Tests/AdminSecurityTests.cs` と `SecretProtectorTests.cs`、
+  Q の `Web.Tests/{PasswordHasher,SecretProtector,TotpService,InvitationToken,AdminPermissions}Tests.cs` を読んだ。
+  A/C の複製は 1 本に統合した。パスワード条件・設定ファイル・文言の試験は保留した実装とともにアプリへ残す。
+  権限表の固有の行や列挙値の試験もアプリへ残し、表の仕組みだけを移した。
+- 固定値は `AuthenticationCompatibilityValues.cs`。
+  上記コミットの既存ソースを Core の無視対象の一時ディレクトリに取り出し、
+  名前空間と文書コメントだけを比較用に変えて実行した。アプリの本体コードは変更していない。
+  記録したパスワード・鍵・文脈はすべて合成した試験値で、実機の秘密ではない。
+- A の `PasswordHasher.Hash(password, 1000)`、Q の `PasswordHasher.Hash(password)`、
+  Q の `Hash(RecoveryCode.Normalize("ABCDE-FGHJK"))` を実行して保存値を採取した。
+  AES は 0〜31 の 32 バイトを Base64 にした鍵、固定の文脈と Base32 平文で、
+  A の `Protect(plain, context)` と Q の `Protect(plain)`／`Protect(plain, context)` を実行した。
+- A の TOTP は UTC `2026-10-22 09:00:00` で `Compute` した `221236` を固定した。
+  新実装で時間枠・前後 1 枠・範囲外・入力整形の差を確認する。
+  招待と旧 SHA-256 復旧コードも、元の `Hash`／`HashOf` の出力を固定した。
+- 固定値で成功することだけでなく、誤入力・別の鍵・別の文脈・方式違い・改ざんを拒否すること、
+  U5 の旧 Base64 と U12 の旧 SHA-256 を受け入れないことを検査する。
+  新生成値を元実装が読み取れることも、一時的な新旧直接比較で確認した。
+
+### この作業の検証結果（2026-10-22）
+
+- 新旧直接比較は 376 ケースで一致。ハッシュの照合結果と例外、暗号の文脈・書式・失敗、
+  TOTP の整形と時間枠、新生成値を旧実装で読む方向を検査した。
+  Q の TOTP の直接比較だけは元実装が現在時刻を使うため実行時刻を合わせ、
+  固定時刻の数字の検証は永続化した単体試験で別途行った。
+- `dotnet build -c Release` は警告 0・エラー 0。
+  `dotnet test -c Release --no-build` は全 436 件成功、スキップ 0
+  （Mail 45・Data 103・Web 288。うち今回追加の部品の試験 64 件）。
+  DB は一時 SQLite。外部 RDBMS の実行を意味しない。
+- `dotnet pack -c Release --no-build` は 4 パッケージと各シンボルパッケージの生成に成功。
+  Core.Web の nupkg 内の DLL・README・ライセンスと nuspec を確認した。
+  追加の依存は Otp.NET 1.4.1、フレームワークは Microsoft.AspNetCore.App。
+  アプリの実装・試験ソース・固定値は nupkg に含まれない。
+- `npm run lint:md`・`bash scripts/sync-agents.sh --check`・
+  `bash scripts/notice-check.sh`・`git diff --check` は成功。
+  Markdown の依存が未復元だったため `npm ci --ignore-scripts` 後に検査した。
+- Code Integrity の実行拒否は発生せず、短いパスへの複製は不要だった。
+
+### 残りの課題と未確認
+
+パスワード条件・秘密ファイルの互換契約、メッセージの仕組みの採否は保留。
+U10 の反復回数の範囲、U5/U12 の通知・救済・混在しない配備の実地確認も残る。
+認証の入口・再認証・レート制限・使い切りの DB 更新はこの部品の責務ではなく、今回は変更しない。
+各アプリを置換したビルド・結合試験、Redis、外部 RDBMS、実機の Pleasanter／IdP は**未確認**。
+この実装は認証と暗号に関わるため、マージ・公開はユーザーのレビュー後とする。
+
+[auth-a-core]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.AtomFeed/tree/236af9341ce9755e5773403db04469fa2804455c/src/VehicleVision.PleasanterTools.AtomFeed.Core
+[auth-a-web]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.AtomFeed/tree/236af9341ce9755e5773403db04469fa2804455c/src/VehicleVision.PleasanterTools.AtomFeed.Web
+[auth-c-core]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.CalendarFeed/tree/b3b265297bbd09a3d60cc7c08bd7e8de99882bed/src/VehicleVision.PleasanterTools.CalendarFeed.Core
+[auth-c-web]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.CalendarFeed/tree/b3b265297bbd09a3d60cc7c08bd7e8de99882bed/src/VehicleVision.PleasanterTools.CalendarFeed.Web
+[auth-q-web]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Questionnaire/tree/33d77eb7247340fd682c08c78845e0e29b94df74/src/VehicleVision.PleasanterTools.Questionnaire.Web
+[otp-license]: https://github.com/kspearrin/Otp.NET/blob/master/LICENSE.txt
