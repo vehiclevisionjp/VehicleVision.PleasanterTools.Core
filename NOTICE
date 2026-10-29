@@ -69,6 +69,6 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
   coverlet.collector 10.1.0 / MIT
   Microsoft.Extensions.Configuration 10.0.14 / MIT
     （設定の読み取りを試すのに使う）
-  Microsoft.Extensions.TimeProvider.Testing 10.10.0 / MIT / https://www.nuget.org/packages/Microsoft.Extensions.TimeProvider.Testing/10.10.0
+  Microsoft.Extensions.TimeProvider.Testing 10.11.0 / MIT / https://www.nuget.org/packages/Microsoft.Extensions.TimeProvider.Testing/10.11.0
     （時間切れを実時間で待たずに試すのに使う。ライセンスはパッケージの nuspec の license 式、参照日 2026-10-22。
       https://github.com/dotnet/extensions）
