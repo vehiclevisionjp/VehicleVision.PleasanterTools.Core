@@ -52,8 +52,10 @@ AGPL の義務（ソースコード開示・コピーレフト）を負わずに
 
 ## Pleasanter との関係（デュアルライセンスの前提）
 
+<!-- license:begin independence=library -->
 本ソフトウェアは Pleasanter（株式会社インプリム, AGPL v3）の
-**独立した別アプリケーション**です。
+**独立した別のソフトウェア**です。
+<!-- license:end independence -->
 
 - 本体のソースコードを **複製・改変・リンク・プロジェクト参照していません**。Pleasanter のアセンブリも参照しません
 - Pleasanter の派生著作物ではありません
@@ -82,7 +84,8 @@ HTTP で呼びます。Core.Data は、Pleasanter のデータベースのスキ
 ## 依存ソフトウェアについて
 
 本ソフトウェアが利用する OSS は **寛容ライセンス（MIT / BSD 系 / Apache-2.0）** に
-限定します。一覧は [`NOTICE`](NOTICE) を参照してください。推移的依存と実際の版は `packages.lock.json` にあります。
+限定します。一覧は [`NOTICE`](NOTICE) を参照してください。依存の宣言（パッケージ参照）は各 csproj にあり、
+`packages.lock.json` を置いているリポジトリでは、推移的依存と実際の版もそこで確認できます。
 
 <!-- license:begin deps-note=free -->
 Core.Data が依存する `Microsoft.Data.SqlClient` は、Windows 向けのネイティブ SNI（`Microsoft.Data.SqlClient.SNI.runtime`。
