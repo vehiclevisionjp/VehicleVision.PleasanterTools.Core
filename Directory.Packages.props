@@ -21,7 +21,7 @@
     <!-- Data -->
     <PackageVersion Include="Dapper" Version="2.1.89" />
     <PackageVersion Include="FluentMigrator" Version="8.0.1" />
-    <PackageVersion Include="FluentMigrator.Runner" Version="8.0.1" />
+    <PackageVersion Include="FluentMigrator.Runner.Core" Version="8.0.1" />
     <PackageVersion Include="FluentMigrator.Runner.MySql" Version="8.0.1" />
     <PackageVersion Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
     <PackageVersion Include="FluentMigrator.Runner.SQLite" Version="8.0.1" />

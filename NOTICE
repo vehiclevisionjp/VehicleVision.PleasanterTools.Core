@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PMC-Commercial
     （TOTP の計算。https://github.com/kspearrin/Otp.NET/blob/master/LICENSE.txt を確認、参照日 2026-10-22）
   Dapper 2.1.89 / Apache-2.0 / https://www.nuget.org/packages/Dapper
   FluentMigrator 8.0.1 / Apache-2.0 / https://www.nuget.org/packages/FluentMigrator
-  FluentMigrator.Runner 8.0.1 / Apache-2.0
+  FluentMigrator.Runner.Core 8.0.1 / Apache-2.0
   FluentMigrator.Runner.SqlServer 8.0.1 / Apache-2.0
   FluentMigrator.Runner.Postgres 8.0.1 / Apache-2.0
   FluentMigrator.Runner.MySql 8.0.1 / Apache-2.0
