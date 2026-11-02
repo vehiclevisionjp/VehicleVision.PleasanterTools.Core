@@ -89,16 +89,36 @@ HTTP で呼びます。Core.Data は、Pleasanter のデータベースのスキ
 
 <!-- license:begin deps-note=free -->
 Core.Data が依存する `Microsoft.Data.SqlClient` は、Windows 向けのネイティブ SNI（`Microsoft.Data.SqlClient.SNI.runtime`。
-Microsoft 独自の許諾）を推移的に伴います。条件は [`NOTICE`](NOTICE) に記しています。
+Microsoft 独自の許諾）を推移的に伴います。条件は、下の「Microsoft.Data.SqlClient.SNI.runtime」の節と [`NOTICE`](NOTICE) に記しています。
 <!-- license:end deps-note -->
 
 これは意図的な制約です。**コピーレフト系（GPL / AGPL / SSPL 等）の依存が 1 つでも入ると、
 商用ライセンスでの提供ができなくなります。** 依存を追加する際は必ずライセンスを確認してください。
 
-<!-- license:begin sni=off -->
+<!-- license:begin sni=library -->
+### Microsoft.Data.SqlClient.SNI.runtime（利用するアプリケーションの配置物に入る）
+
+本ソフトウェアの Core.Data は `Microsoft.Data.SqlClient` に依存し、これが
+`Microsoft.Data.SqlClient.SNI.runtime`（ネイティブのライブラリ。Microsoft Software License Terms
+「MICROSOFT.DATA.SQLCLIENT.SNI LIBRARY」）を推移的に伴います。MIT・BSD・Apache-2.0 ではない
+Microsoft 独自の許諾です。
+
+- 本ソフトウェアは、この依存を宣言するだけで、この部品を配置物として持ちません
+- 本ソフトウェアを組み込んだアプリケーションの、SQL Server に接続する Windows 向けの配置物には、この部品が含まれます
+- 頒布するときの条件は、そのアプリケーションの `LICENSING.md`
+  （「例外: Microsoft.Data.SqlClient.SNI.runtime」の節）と `LICENSE-COMMERCIAL.md` に書かれています。
+  あわせて [`NOTICE`](NOTICE) を参照してください
+
+条件の正本は、パッケージ内の `LICENSE.txt` です。上の整理は法的な助言ではありません。
 <!-- license:end sni -->
 
-<!-- license:begin core=off -->
+<!-- license:begin core=library -->
+### 各アプリケーションに組み込まれた場合の商用ライセンス
+
+本ソフトウェアは、当社のアプリケーション（VehicleVision.PleasanterTools の各ツール）へ組み込まれて使われます。
+当社のアプリケーションの商用ライセンス（B）の契約を結んだ方には、そのアプリケーションに組み込まれた本ソフトウェアを、
+そのアプリケーションと同じ条件で提供します。
+本ソフトウェアを単体で利用する場合と、当社のアプリケーション以外へ組み込む場合は、個別に契約します。
 <!-- license:end core -->
 
 ## 貢献を受け取るとき
