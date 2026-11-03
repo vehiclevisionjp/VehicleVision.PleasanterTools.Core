@@ -1,5 +1,6 @@
 VehicleVision.PleasanterTools.Core
 Copyright (C) PMC Co., Ltd. IT Solution Div.
+SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PMC-Commercial
 
 本ソフトウェアはデュアルライセンス（AGPL-3.0-or-later OR LicenseRef-PMC-Commercial）で
 提供されます。詳細は LICENSING.md を参照してください。
@@ -21,7 +22,7 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
     （TOTP の計算。https://github.com/kspearrin/Otp.NET/blob/master/LICENSE.txt を確認、参照日 2026-10-22）
   Dapper 2.1.89 / Apache-2.0 / https://www.nuget.org/packages/Dapper
   FluentMigrator 8.0.1 / Apache-2.0 / https://www.nuget.org/packages/FluentMigrator
-  FluentMigrator.Runner 8.0.1 / Apache-2.0
+  FluentMigrator.Runner.Core 8.0.1 / Apache-2.0
   FluentMigrator.Runner.SqlServer 8.0.1 / Apache-2.0
   FluentMigrator.Runner.Postgres 8.0.1 / Apache-2.0
   FluentMigrator.Runner.MySql 8.0.1 / Apache-2.0
@@ -36,7 +37,10 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
       単体での再配布の禁止・保証の否認・責任の制限・輸出規制の遵守など、この許諾と同程度に守る条件へ同意させる／
       アプリの頒布・利用に関する請求から Microsoft を補償する（改変していない SNI だけに基づく請求を除く）。
       **2026-10-20 の決定**: 条件を明記したうえで許容し、「依存は寛容ライセンスに限る」の例外として扱う。
-      頒布するときは、上の条件を利用許諾（商用条件・EULA）へ反映する。法務の確認は別途）
+      頒布するときは、上の条件を利用許諾（商用条件・EULA）へ反映する。
+      **Core は依存を宣言するだけで、この部品を配置物として持たない。** Core を組み込んだアプリの、SQL Server に接続する Windows 向けの
+      配置物に入る。アプリ側の頒布の条件は、各アプリの LICENSING.md の「例外: Microsoft.Data.SqlClient.SNI.runtime」の節と
+      LICENSE-COMMERCIAL.md の「頒布先に守っていただく条件」に書いてある。Core 側の案内は LICENSING.md の同名の節）
   Npgsql 10.0.3 / PostgreSQL License（BSD 系の寛容ライセンス） / https://www.nuget.org/packages/Npgsql
   MySqlConnector 2.6.2 / MIT / https://www.nuget.org/packages/MySqlConnector
   Microsoft.Extensions.DependencyInjection 10.0.14 / MIT
@@ -46,7 +50,7 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
     （メールの送信。MimeKit と BouncyCastle.Cryptography（いずれも MIT）を推移的に伴う）
   System.Security.Cryptography.Pkcs 10.0.14 / MIT / https://www.nuget.org/packages/System.Security.Cryptography.Pkcs
     （MimeKit・Microsoft.Data.SqlClient が推移的に伴う。脆弱性の修正版へ固定している）
-  AWSSDK.SimpleEmailV2 4.0.106.4 / Apache-2.0 / https://github.com/aws/aws-sdk-net
+  AWSSDK.SimpleEmailV2 4.0.106.7 / Apache-2.0 / https://github.com/aws/aws-sdk-net
     （Amazon SES の送信経路。IAM ロールで通るので、保管する秘密が 0 になる）
   Azure.Communication.Email 1.1.0 / MIT / https://github.com/Azure/azure-sdk-for-net
     （Azure Communication Services の送信経路。マネージド ID で通る）

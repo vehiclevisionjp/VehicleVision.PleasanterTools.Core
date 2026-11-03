@@ -22,3 +22,6 @@ temp/
 
 ## Node.js の依存（markdownlint）
 **/node_modules/
+
+## git worktree の作業ツリー置き場（ブランチ運用方針.md）
+.worktrees/

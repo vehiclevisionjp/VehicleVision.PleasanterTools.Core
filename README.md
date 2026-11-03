@@ -10,7 +10,7 @@ PleasanterTools は、ノーコード／ローコード業務基盤 [Pleasanter]
 **「孫の手」として当社が作っているツール群**です。
 運営: 株式会社ピー・エム・シー ITソリューション事業部 / PMC Co., Ltd. IT Solution Div.
 Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[Core.Web][nuget-web]・
-[Core.Web.Testing][nuget-testing] の 4 パッケージを nuget.org で公開しています（プレビュー版）。
+[Core.Web.Testing][nuget-testing] の 4 パッケージを nuget.org で公開しています（安定版 0.1.0。1.0.0 未満のため互換は保証しません）。
 
 ### ファミリーの一覧
 
@@ -32,7 +32,7 @@ Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[C
 | [DotNetClient][repo-dotnetclient] | Pleasanter の標準 Web API を呼ぶ .NET クライアント | ライブラリ | LGPL | 開発中 | なし |
 | [FeedIngest][repo-feedingest] | RSS / Atom を取り込み、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
 | [MailIngest][repo-mailingest] | POP3 / IMAP のメールを取り込み、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
-| [Core][repo-core] | 各ツールの DB・メール・Web・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.1.0-preview.12（プレビュー） | 提供元 |
+| [Core][repo-core] | 各ツールの DB・メール・Web・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.1.0 | 提供元 |
 | Template（社内テンプレート） | 新しいツールのひな形と共通の開発運用を提供 | ツール | AGPL | 開発中（社内用） | なし |
 
 ### 名前の付け方
@@ -72,7 +72,7 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
 | `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表 |
-| `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は preview.11 公開済み、追加の安全性契約は未公開 |
+| `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は 0.1.0 に含まれる。追加の安全性契約は未公開 |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
 
@@ -108,7 +108,7 @@ builder.Services.AddPleasanterSessionVerifier(new PleasanterSessionVerifierSetti
 
 何を Core.Web へ移し、何をアプリに残したかは [`_documents/Core.Web-共通化の方針.md`][web-policy]。
 
-### SSO・SAML 設定とマイグレーションコマンド（preview.12 公開予定）
+### SSO・SAML 設定とマイグレーションコマンド（0.1.0 に含まれる）
 
 ```csharp
 var sso = PleasanterSsoOptions.FromConfiguration(
@@ -138,13 +138,12 @@ DB の待機は `--wait-for-db=N`、ロックの待機は `RunAsync` の `lockTi
 **AtomFeed・CalendarFeed は、置き換え後に適用前の一覧と適用件数が出るようになります。**
 状態の確認はスキーマを適用しませんが、新規 SQLite DB に空の `VersionInfo` 表を作る場合があります。
 
-**今回は Core のみを実装しています。各アプリの置き換えは preview.12 公開後の別作業です。**
-この変更自体はタグを付けず、公開しません。
+**Core 側の実装は 0.1.0 で公開済みです。各アプリの置き換えは、Core とは別の作業です。**
 
-### 認証の基盤（Issue #92・#99、preview.15 向け）
+### 認証の基盤（Issue #92・#99。0.1.0 に含まれる）
 
 **読むのは既存の保存値すべて、書くのは新しい 1 方式**です。互換方式の enum は廃止しました。
-preview.14 の API を使うアプリはまだなく、この変更は破壊的変更です。
+preview.14 までの API からは破壊的変更で、0.1.0 はその後の形です（preview.14 の API を使うアプリはありませんでした）。
 
 | 部品 | 読むもの | 新しく書くもの |
 |---|---|---|
@@ -165,30 +164,33 @@ TOTP の不正な入力・共有鍵は不一致です。同じ時間枠の再使
 鍵の自動生成・アプリの役割・環境変数名・認証の入口は持ちません。
 旧 SHA-256 復旧コードは再発行、旧 Base64 招待は再招待で移行し、旧形式へのフォールバックは残しません。
 
-**今回の変更では各アプリを置換せず、マージ・公開もしません。**
-旧書式の詳細と公開後の追随手順は
+**この変更は 0.1.0 で公開済みです。各アプリの置き換えは別作業です。**
+旧書式の詳細と各アプリの追随手順は
 [Core.Web 共通化の方針](_documents/Core.Web-共通化の方針.md#認証の基盤の共通化issue-92)を参照してください。
 
 ## 配布と参照（nuget.org）
 
-nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data` / `.Web`）。
+nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data` / `.Web` / `.Web.Testing`）。
 **認証なしで取得できる**ので、参照するリポジトリは、`PackageReference` を書くだけです
 （`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0-preview.11" />
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0" />
 ```
 
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`][release-guide]
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
-- 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）。
-  nuget.org の公開済みの版は Mail・Data が preview.2〜11、Web は preview.10〜11 です
-  （2026-10-22 に各パッケージの版一覧を確認。[Mail][mail-versions] / [Data][data-versions] / [Web][web-versions]）
+- **安定版 0.1.0 を 2026-10-30 に公開しました**（タグ `v0.1.0`。4 パッケージとも同じ版）。
+  プレビュー版は、Mail・Data が preview.2〜15、Web が preview.10〜15、Web.Testing が preview.11〜15 です
+- 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）
+- 2026-10-30 に各パッケージの版一覧を確認しました。
+  [Mail][mail-versions] / [Data][data-versions] / [Web][web-versions] / [Web.Testing][testing-versions]
 
 [mail-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.mail/index.json
 [data-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.data/index.json
 [web-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web/index.json
+[testing-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web.testing/index.json
 
 ## バージョン
 
