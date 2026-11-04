@@ -121,6 +121,9 @@ Microsoft 独自の許諾です。
 本ソフトウェアを単体で利用する場合と、当社のアプリケーション以外へ組み込む場合は、個別に契約します。
 <!-- license:end core -->
 
+<!-- license:begin dotnetclient=off -->
+<!-- license:end dotnetclient -->
+
 ## 貢献を受け取るとき
 
 **デュアルライセンスを保つには、貢献者からの許諾が要る。**
