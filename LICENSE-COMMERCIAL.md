@@ -54,6 +54,9 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
 - 当社のアプリケーション以外へ組み込む場合
 <!-- license:end core-terms -->
 
+<!-- license:begin dotnetclient-terms=off -->
+<!-- license:end dotnetclient-terms -->
+
 <!-- license:begin sni-terms=library -->
 <!-- license:end sni-terms -->
 
