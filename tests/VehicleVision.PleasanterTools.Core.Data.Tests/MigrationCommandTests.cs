@@ -137,7 +137,12 @@ public sealed class MigrationCommandTests : IDisposable
         var result = await Run(["--migrate", "--wait-for-db=1"], Connection + ";Mode=ReadOnly");
         Assert.Equal(1, result.Code);
         Assert.Empty(result.Output);
-        Assert.StartsWith($"Waiting for the database (up to 1s)...{Environment.NewLine}[ERROR] Database not reachable after 1s: ", result.Error);
+        // ドライバーの例外メッセージ（接続文字列やファイルのパスを含み得る）は出さず、固定の文言と例外の型名だけを出す
+        var lines = result.Error.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        Assert.Equal("Waiting for the database (up to 1s)...", lines[0]);
+        Assert.Matches(@"^\[ERROR\] Database not reachable after 1s \([A-Za-z0-9_`]+\)\.$", lines[1]);
+        Assert.DoesNotContain(file, result.Error, StringComparison.Ordinal);
         Assert.All(result.Error, character => Assert.True(character is >= ' ' and <= '~' or (char)13 or (char)10));
         Assert.False(File.Exists(file));
     }

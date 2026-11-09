@@ -61,6 +61,19 @@ public sealed class JsonTests
     }
 
     [Fact]
+    public void 固有の項目の値と名前も_uXXXXで_バージョンの枠も同じ()
+    {
+        // 既定のエンコーダーに頼らず JavaScriptEncoder を明示していることを、固有の項目とバージョンでも固定する（仕様書 3.2）
+        var json = JsonResult.Serialize(
+            "x", true, 0, None, None, writer => writer.WriteString("名前", "値😀"));
+        Assert.Contains("\"\\u540D\\u524D\":\"\\u5024\\uD83D\\uDE00\"", json, StringComparison.Ordinal);
+        Assert.True(TestTool.IsAscii(json));
+        var version = JsonResult.SerializeVersion("1.0.0-é");
+        Assert.Contains("\"version\":\"1.0.0-\\u00E9\"", version, StringComparison.Ordinal);
+        Assert.True(TestTool.IsAscii(version));
+    }
+
+    [Fact]
     public void 非ASCIIは_uXXXXで_サロゲートペアは2つ()
     {
         var json = JsonResult.Serialize("x", false, 1, [new CliIssue("Bad", "日本 \U0001F600 <a&b> 'q'", "pé")], None);

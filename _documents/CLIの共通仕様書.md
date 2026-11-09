@@ -2,7 +2,8 @@
 
 VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共通で従う動き**の仕様。
 出力・`--json`・終了コード・引数の解析・環境変数を定め、Core の共通部品（案）の形まで書く。
-実装は、この仕様の承認後に別の Issue で行う（Issue #167 の範囲外）。
+実装は、この仕様の承認後に別の Issue で進めた。`Core.Cli`・`Core.Contracts`・`Core.Cli.Testing`・補完・`MigrationCommand` の揃えは実装済みで、
+各ツールへの適用は 8 章の順序で行う。**実装に合わせて何度も直しているので、食い違いを見つけたら、実物（コードとテスト）が正で、この文書を直す**（決定の内容は変えない）。
 
 **ユーザーが決めたこと（2026-11-08）と、その具体化の提案と、まだ決まっていないことを区別して書く。**
 
@@ -14,7 +15,8 @@ VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共
 | **未確認** | 実機・実コードで確かめていない |
 
 決定の内容を変えたい点は、変えずに 9 章へ質問として書く。
-**2026-11-09 に、未決だった U1〜U18 と、そこから出た N1〜N6 へユーザーが回答した。回答を「決定」として本文へ移し、9.3 に一覧を残した。質問としての未決は残っていない（9 章）。**
+**2026-11-09 に、未決だった U1〜U18 と、そこから出た N1〜N6 へユーザーが回答した。回答を「決定」として本文へ移し、9.3 に一覧を残した。
+質問としての未決は無い（9 章。Core#176 で見つかった 9.6 の Q1〜Q5 は、2026-11-09 に回答があり、決定にした）。**
 共通の環境変数の接頭辞は、Q7 の「共通は `PLEASANTER_`」を、ユーザーが `VVPT_PLEASANTER_*` へ変更した（6 章）。
 
 ## 1. 範囲と前提
@@ -89,6 +91,10 @@ Core は Public、決定の元になった記録は組織内部（internal）の
 | ASCII 以外の入力 | ファイル名などを出すときは `?` に置き換える。制御文字も同じ。1 行にする | 提案（BinaryMigrator の `ToAscii` と同じ。`{P}.Core/Commands/ReportFormatter.cs`） |
 | 秘密 | パスワード・トークン・接続文字列・API キーを出さない。例外のメッセージも同じ。例外の文言は、そのまま出さない | 提案（既存の各ツールが守っている規則を共通にする） |
 | 使い方の誤りで入力を示すとき | オプションの**名前だけ**を示す。`=` の後ろの値は示さない（秘密が混ざり得るため） | 提案 |
+| 想定外の例外・ドライバーの例外を示すとき | **固定の文言と、例外の型名だけ**にする。例外の `Message` は出さない（接続文字列・パスなどの秘密が混ざり得るため）。例: `[ERROR] Database not reachable after 30s (SqlException).`（`MigrationCommand` の待機期限切れ） | 決定（2026-11-09、Core#176） |
+
+- **対象外（決定、2026-11-09、Core#176）**: `[Migration(…)]` 属性の日本語の説明文は、日本語のままにする。コンソールに出ず、既存の DB の `VersionInfo` の説明列と食い違わせないため。
+  ASCII・英語にする規則（この表）の対象は、コンソールへ出す文字列だけ
 
 ### 2.2 stdout と stderr
 
@@ -125,19 +131,28 @@ Core は Public、決定の元になった記録は組織内部（internal）の
 
 1. 色を付ける行の出力先（stdout または stderr）が端末（TTY）につながっている
 2. 環境変数 `NO_COLOR` が未設定、または空
+3. 環境変数 `TERM` が `dumb` ではない（決定、2026-11-09、Core#176 の Q3。`dumb` は色を扱えない端末の慣習的な名前）
+4. Windows では、その出力先の仮想端末の処理（`ENABLE_VIRTUAL_TERMINAL_PROCESSING`）が有効、または有効にできる。有効にできなければ色なし（決定、2026-11-09、Core#176 の Q2）
 
 細部（接頭辞の色は決定。そのほかは提案）:
 
 - 判定は出力先ごと。`ツール > result.txt` では stdout は色なし、stderr は端末なら色あり
+- 4 は `CliOutput.ForConsole` が行う。端末（リダイレクトされていない）の出力先についてだけ、`GetConsoleMode` で調べ、無効なら `SetConsoleMode` で有効にする。
+  BCL には、コンソールのモードを変える API が無い（`Console` は読み取りだけ）ので、
+  `kernel32` の 3 関数（`GetStdHandle`・`GetConsoleMode`・`SetConsoleMode`）を
+  P/Invoke で呼ぶ。
+  追加のパッケージは要らず、「BCL だけに依存する」方針（5.6）とは両立する。Windows 以外では何もしない。有効にしたモードは、戻さない
 - 色は**接頭辞の部分だけ**に付け、メッセージは既定の色のままにする。標準の 16 色の前景（31〜33）だけを使い、
   接頭辞の直後に `ESC[0m` でリセットする。256 色・24 ビット・太字・背景色は使わない
 - `[INFO]` は色なし。鉄紺のような暗い色は暗い背景で読めなくなるため
 - 色だけで意味を伝えない。接頭辞を常に付けるのはそのため
 - `--json` のときも stdout は JSON だけで、色のコードを混ぜない（stderr は上の判定に従う）
 
-**未確認:** Kudu の Debug console が端末として見えるかは、実機で確かめていない。
+**未確認（ユーザーの実機待ち）:** Kudu の Debug console が端末として見えるかは、実機で確かめていない（9.1）。
 端末に見えて ANSI がそのまま表示される場合は、`--color auto|always|never` を足す案へ切り替える。
-Windows のコンソールが ANSI を解釈するか（仮想端末の処理の有効化）も、実機で確認が要る。
+それまでは、「色は自動判定だけ」の決定のままにする（決定、2026-11-09、Core#176）。
+Windows のコンソールが ANSI を解釈するか（仮想端末の処理の有効化）は、手元で確かめた。結果は 9.1。
+従来のコンソールでは無効だったので、上の 4 を足した。
 
 ### 2.5 現状との差
 
@@ -207,8 +222,10 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
 {"command":"run","ok":false,"exitCode":3,"errors":[],"warnings":[{"code":"MoreMessagesRemain","message":"The message limit was reached."}]}
 ```
 
-非 ASCII はエスケープする（例: `"message":"日本"`）。.NET の `System.Text.Json` の既定のエンコーダーは非 ASCII を
-エスケープするが、**実装でテストして固定する**（未確認。既定の挙動に頼らず、`JavaScriptEncoder` を明示する）。
+非 ASCII はエスケープする（例: `"message":"日本"` は `\u65E5\u672C`）。.NET の `System.Text.Json` の既定のエンコーダーも非 ASCII を
+`\uXXXX` にする（.NET 10.0.14 で確認。`<`・`>`・`&`・`'` も `\uXXXX`）が、**既定の挙動には頼らず、`JsonResult` が `JavaScriptEncoder` を明示している**
+（印字可能な ASCII だけをそのまま出す）。非 ASCII・サロゲートペア・制御文字が `\uXXXX` になることは、`Core.Cli.Tests` の `JsonTests` で固定している
+（枠の `message`・`path` のほか、固有の項目の名前と値、`--version --json` も）。
 
 ### 3.4 現状
 
@@ -229,7 +246,8 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
 - 想定外の例外は、すべて 1 にして `[ERROR]` を出す。例外の文言をそのまま出さず、秘密を含めない（決定）
 - **決定（2026-11-09、Core#175）**: Web アプリの `--migrate-status` は、未適用の移行があれば 1（`validate` で問題ありと同じ「検査の失敗」）、
   すべて適用済みなら 0
-- 提案: 複数に当てはまるときの優先は、130（中断）> 1（失敗）> 3（残りあり）> 0。MailIngest は、エラーがあれば 1、
+- 提案: 複数に当てはまるときの優先は、130（中断）> 2（使い方の誤り）> 1（失敗）> 3（残りあり）> 0（`ExitCodes.Combine`。2 は実行前の誤りで、実行結果とは並ばないが、順序を決めてある）。
+  MailIngest は、エラーがあれば 1、
   無くて残りがあれば 3 にしており（`{P}.Core/Ingest/IngestRunner.cs:57`）、これを共通の規則にする
 - 提案: 2 は、**始める前に分かる誤り**（引数・設定ファイルの形・環境変数の欠落・読めないファイル）。
   実行を始めてから分かった問題は 1
@@ -273,6 +291,7 @@ flowchart TD
 | MailIngest `validate` | 設定ファイルの中身の問題が 2（`{P}.Cli/Program.cs:127-130`） | **中身の問題は 1**。ファイルが無い・読めないは 2（U5）。検査の結果を終了コードで読んでいる運用に影響する |
 | IndexCreator | DB の失敗が 3（`src/IndexCreator/Program.cs:192`）、確認で `yes` と入力しないと 2（同 184） | DB の失敗は 1（3 は「一部だけ完了」）。**確認の拒否は 1**（U7）。`plan` は未適用の変更があっても 0 のまま（U6） |
 | 中断（BinaryMigrator・DatabaseConverter・ExtensionsMigrator・MailIngest） | 1 | 130 |
+| FeedIngest | 一部または全部が未完了は 1（`{P}.Cli/CliApp.cs:12`、`{P}.Cli/Ingest/IngestRunner.cs:48`） | **変わらない**（決定、2026-11-09、Core#176）。3 は「件数上限で残りを残す」ツール（MailIngest）用で、FeedIngest には当てはめない |
 | Core の `MigrationCommand` | DB の待機期限切れが 2 | 実行時の失敗なので 1（Core#175 で対応） |
 | 想定外の例外（CalendarStyleCreator） | 捕まえない | 1 と `[ERROR]` |
 
@@ -438,6 +457,7 @@ Exit codes:
 ### 5.6 公開 API の案
 
 **新しいパッケージ `VehicleVision.PleasanterTools.Core.Cli` に置く**案。BCL だけに依存し、`Core.Contracts` 以外の Core のパッケージを参照しない
+（Windows の仮想端末の処理を有効にするため、`kernel32` を P/Invoke するだけで、追加のパッケージは要らない。2.4）
 （`Core.Data` に置くと、DB を使わない BinaryMigrator・ExtensionsMigrator などが Dapper などを引き連れる）。
 Core の規則（アプリ名を書かない・値は引数で受ける）に従い、ツール名・環境変数の名前・説明はすべて定義として受け取る。
 
@@ -584,7 +604,28 @@ public static class PleasanterEnvironmentNames  // Core.Contracts
 /// </summary>
 public static class LegacyEnvironmentCheck
 {
-    public static IReadOnlyList<string> Find(Func<string, string?> getEnvironmentVariable, IReadOnlyDictionary<string, string> legacy);
+    /// <summary>legacy を省略すると PleasanterEnvironmentNames.Legacy。ツール固有の旧名（DBCONV_* など）は、呼び出し側が足して渡す。</summary>
+    public static IReadOnlyList<string> Find(Func<string, string?> getEnvironmentVariable, IReadOnlyDictionary<string, string>? legacy = null);
+
+    /// <summary>旧名が 1 つでもあれば、すべて [ERROR] で出して 2 を返す。無ければ 0。</summary>
+    public static int Report(CliOutput output, Func<string, string?> getEnvironmentVariable, IReadOnlyDictionary<string, string>? legacy = null);
+}
+
+/// <summary>
+/// 共通の API キーの読み方（決定: N4。実装済み）。VVPT_PLEASANTER_API_KEY と VVPT_PLEASANTER_API_KEY_FILE のどちらか片方を使う。
+/// 失敗は UsageException（CLI は 2。ライブラリは例外のまま使える）。メッセージにキーの値・ファイルの中身は含めない。
+/// </summary>
+public static class PleasanterApiKey
+{
+    /// <summary>どちらも未設定（空は未設定）なら null。両方あれば UsageException。ファイルは前後の空白・改行を除いて使い、読めない・空も UsageException。</summary>
+    public static string? Resolve(Func<string, string?> getEnvironmentVariable, Func<string, string>? readAllText = null);
+}
+
+/// <summary>環境変数の名前の導き方と真偽の読み方（実装済み）。</summary>
+public static class EnvironmentNames
+{
+    public static string Prefix(string toolId);   // "binary-migrator" → "BINARY_MIGRATOR_"
+    public static bool IsTrue(string? value);     // "true"（大文字小文字は問わない）だけが真。前後の空白は無視しない
 }
 ```
 
@@ -602,6 +643,7 @@ public sealed class CliOutput
         bool stderrIsTerminal,
         Func<string, string>? redact = null);
 
+    // 端末かは、リダイレクトされていないかで判定する。Windows では、端末の出力先の仮想端末の処理を有効にし、できなければ色なし（2.4）
     public static CliOutput ForConsole(Func<string, string?>? getEnvironmentVariable = null, Func<string, string>? redact = null);
 
     public void Ok(string message);          // stdout: [OK] ...
@@ -611,6 +653,7 @@ public sealed class CliOutput
     public void Result(string line);         // stdout: 接頭辞なし
     public void Progress(string line);       // stderr: 接頭辞なし
 
+    // 端末で、NO_COLOR が未設定・空で、TERM が dumb ではないときだけ真（2.4）
     public static bool UseColor(bool isTerminal, Func<string, string?> getEnvironmentVariable);
     public static string ToAscii(string text);
 
@@ -704,11 +747,12 @@ public static class CliApplication
   `ConverterApplication`（入出力・環境変数・DB を差し替えられる。`{P}.Core/CommandLine/ConverterApplication.cs:29-43`）。
   どちらも「入出力と環境変数を差し替えられる」ので、DB なし・実プロセスなしでテストできる
 - 環境変数の接頭辞を、ツール ID から導く補助 `EnvironmentNames.Prefix(string toolId)`（`binary-migrator` → `BINARY_MIGRATOR_`）を
-  Core に置く案。Core.Data の `AppDatabase` が同じ規則で `<ID>_` を導いている
+  `Core.Cli` に置いた（実装済み。真偽の読み方 `EnvironmentNames.IsTrue` も）。Core.Data の `AppDatabase` が同じ規則で `<ID>_` を導いている
   （`AppDatabase.cs:81-89`、`appId.ToUpperInvariant().Replace('-', '_')`）
+- **初版に入れたもの**: API キーの読み方（`PleasanterApiKey`。決定 N4）。`API_KEY_FILE` を読む部品は、後続の候補ではなく `Core.Cli` にある
 - **後続の候補**（初版に入れない）: 接続文字列を「ファイル・標準入力・環境変数」から読む部品
   （BinaryMigrator の `SecretResolver` と DatabaseConverter の `ResolveConnectionString` が二重）、秘密を伏せる部品
-  （BinaryMigrator の `SecretRedactor`、DatabaseConverter の静的な `SecretRedactor`）、`--yes` の確認の質問
+  （BinaryMigrator の `SecretRedactor`、DatabaseConverter の静的な `SecretRedactor`。`CliOutput` は伏せる関数を受け取るだけ）、`--yes` の確認の質問
 - **決定（U12）**: `Core.Data` は `Core.Cli` を参照しない。`Core.Data` の `MigrationCommand` は `TextWriter` を受けて、
   文言・終了コードだけを揃える。ずれは契約テスト（5.7）で検出する
 - **決定（U7・U15）**: `--yes`（`-y`）・`--version`・`--json` は `CommonOptions` の共通の定義として Core が持つ
@@ -720,8 +764,9 @@ public static class CliApplication
   旧名の検出（`LegacyEnvironmentCheck`）・`EnvironmentNames`・`PleasanterApiKey`・`ExitCodes.Combine` は処理なので `Core.Cli` に残る。
   `Core.Cli` は `Core.Contracts` を参照する。**DotNetClient は `Core.Contracts` だけを参照し、`Core.Cli` は参照しない**
   Core の規約（アプリ固有の値を書かない）の対象は、アプリ固有の値で、**製品群で共通の値は対象外**（1.3.1）
-- **決定（N4）**: `API_KEY_FILE` は DotNetClient には足さず、**ツール側が共通の部品で読む**（ファイル → 環境変数の順などの細部は、
-  実装の Issue で詰める。秘密の読み方は 5.6 の「後続の候補」にある接続文字列の部品と同じ種類）
+- **決定（N4）**: `API_KEY_FILE` は DotNetClient には足さず、**ツール側が共通の部品で読む**。部品は `Core.Cli` の `PleasanterApiKey`（実装済み）。
+  細部は実装で詰めた: 環境変数とファイルは**どちらか片方**（両方あれば使い方の誤りで、優先順は設けない）、
+  ファイルは前後の空白・改行を除き、読めない・空はエラー（9.4）。接続文字列の部品は、5.6 の「後続の候補」のまま
 - **決定（U18）**: `CliApplication` は、1 回目の Ctrl+C で取り消しの合図、2 回目ですぐ終了する（どちらも 130）
 - 配置の注意: 新しいパッケージ（`Core.Cli`、および契約テストの `Core.Cli.Testing`）を足すと、nuget.org の Trusted Publishing のポリシーと `release.yml`・リリース手順書の
   パッケージ一覧の更新が要る（`_documents/リリース手順書.md`）。リリースの dry-run は、2 つのワークフローとも先に回す。
@@ -797,7 +842,7 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | 共通 | ツール間で共通のもの（Pleasanter の接続）は **`VVPT_PLEASANTER_`**。`VVPT_PLEASANTER_BASE_URL`・`_API_KEY`・`_API_KEY_FILE`・`_ALLOW_INSECURE_HTTP`・`_SERVER_VERSION` の 5 つ | **決定（ユーザーが Q7 の `PLEASANTER_` から変更。2026-11-09）** |
 | 略称の例外 | U8 は略称をやめる方針だが、**共通の接頭辞 `VVPT_` だけは略称のまま**（VehicleVision PleasanterTools の頭文字）。例外はこの 1 つだけ | 決定 |
 | 統合 | FeedIngest の `FEEDINGEST_PLEASANTER_*`（ツール用の上書き）は、共通の `VVPT_PLEASANTER_*` へ統合する。第 3 の形は設けない | 決定（U9） |
-| `API_KEY_FILE` | 共通の変数にする。Pleasanter に接続する各ツール（ExtensionsMigrator・MailIngest・CalendarStyleCreator など）へ、適用の Issue ごとに追加する。**DotNetClient には足さず、ツール側が共通の部品で読む** | 決定（U10、N4） |
+| `API_KEY_FILE` | 共通の変数にする。Pleasanter に接続する各ツール（ExtensionsMigrator・MailIngest・CalendarStyleCreator など）へ、適用の Issue ごとに追加する。**DotNetClient には足さず、ツール側が共通の部品（`Core.Cli` の `PleasanterApiKey`。5.6）で読む** | 決定（U10、N4） |
 | 移行 | 既存の変数も一斉に新しい名前へ移し、**旧名は受け付けない**（旧名を値として使わない）。破壊的変更 | 決定（Q7） |
 | 旧名の検出 | 旧名の環境変数が設定されているときは、**新名が同時に設定されていても**、`[ERROR] Environment variable X is no longer supported. Use Y.` を stderr に出して終了コード 2。無言で未設定扱いにしない。旧名が残っていることを確実に直させるため。**移行の途中の環境は、旧名を消すまで動かない**（適用 Issue の移行手順と告知に明記する） | 決定（U11、N2） |
 | 告知 | 適用の Issue ごとに、旧名と新名の対応表・移行手順・リリースノートでの告知を書く | 決定（Q7） |
@@ -817,11 +862,13 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | DatabaseConverter | `DBCONV_SOURCE_CONNECTION`・`DBCONV_TARGET_CONNECTION`（`--source-connection-env` で名前を変えられる） | `{P}.Core/CommandLine/ArgumentParser.cs:22,24` | `DATABASE_CONVERTER_SOURCE_CONNECTION`・`DATABASE_CONVERTER_TARGET_CONNECTION` |
 | ExtensionsMigrator | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY` | `{P}.Engine/PleasanterEnvironment.cs:21-22` | `VVPT_PLEASANTER_BASE_URL`・`VVPT_PLEASANTER_API_KEY`。`VVPT_PLEASANTER_API_KEY_FILE` を追加 |
 | FeedIngest | `PLEASANTER_BASE_URL`・`_API_KEY`・`_API_KEY_FILE`、または `FEEDINGEST_PLEASANTER_*`（3 つ。併用は不可）。`FEEDINGEST_DB_PROVIDER`・`_DB_CONNECTIONSTRING`・`_DB_ALLOW_INSECURE`。設定ファイルが指す秘密の名前（利用者が決める） | `{P}.Pleasanter/PleasanterEnvironment.cs:17-29`、`{P}.Cli/DatabaseSetup.cs:8-9` | `VVPT_PLEASANTER_BASE_URL`・`_API_KEY`・`_API_KEY_FILE` に統合（`FEEDINGEST_PLEASANTER_*` は廃止）。`FEEDINGEST_DB_*` は変更なし |
-| MailIngest | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`（`check` だけ。`run` は設定ファイルが指す名前の変数から API キーを読む）。`MAILINGEST_DB_*`。メールの資格情報も設定ファイルが指す名前 | `{P}.Core/PleasanterEnvironment.cs:22-23`、`{P}.Cli/RunCommand.cs:87`、`{P}.Cli/Program.cs:11` | `VVPT_PLEASANTER_BASE_URL`・`_API_KEY`。`_API_KEY_FILE` を追加。`MAILINGEST_DB_*` は変更なし |
+| MailIngest | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`（`check` だけ。`run` は設定ファイルが指す名前の変数から API キーを読む）。`MAILINGEST_DB_*`。メールの資格情報も設定ファイルが指す名前 | `{P}.Core/PleasanterEnvironment.cs:22-23`、`{P}.Cli/RunCommand.cs:87`、`{P}.Cli/Program.cs:11` | `VVPT_PLEASANTER_BASE_URL`・`_API_KEY`。`_API_KEY_FILE` を追加。**`run` は、設定ファイルが API キーの環境変数名を指したときはその名前、指さないときは共通の `VVPT_PLEASANTER_API_KEY`（と `_API_KEY_FILE`）を読む**（決定、2026-11-09、Core#176。現状は `apiKeyEnvironmentVariable` が必須なので、適用の Issue で任意にする）。`MAILINGEST_DB_*` は変更なし |
 | IndexCreator | `INDEXCREATOR_DBMS`・`INDEXCREATOR_CONNECTION_STRING`・`INDEXCREATOR_SCHEMA`。ほかに Pleasanter 本体の名前 | `src/IndexCreator/Options.cs:198,206-212,220` | `INDEX_CREATOR_DBMS`・`INDEX_CREATOR_CONNECTION_STRING`・`INDEX_CREATOR_SCHEMA`。本体の名前は改名しない |
 | CalendarStyleCreator | `CALENDARSTYLE_ICAL_BEARER_TOKEN`・`_ICAL_BASIC_USER`・`_ICAL_BASIC_PASSWORD`・`_PLEASANTER_API_KEY`、`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/CalendarStyleCreator/Options.cs:11-17` | `CALENDAR_STYLE_CREATOR_ICAL_*`（3 つ）。`PLEASANTER_ALLOW_INSECURE_HTTP`→`VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`。`CALENDARSTYLE_PLEASANTER_API_KEY` は共通の `VVPT_PLEASANTER_API_KEY` へ**統合**（決定、N3）。`VVPT_PLEASANTER_API_KEY_FILE` を追加。旧名は旧名の検出で案内 |
 | DotNetClient（ライブラリ。公開済み 0.4.0） | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`・`PLEASANTER_SERVER_VERSION`・`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/VehicleVision.PleasanterTools.DotNetClient/PleasanterOptions.cs:166-171` | `VVPT_PLEASANTER_*`（`BASE_URL`・`API_KEY`・`SERVER_VERSION`・`ALLOW_INSECURE_HTTP`。`API_KEY_FILE` は DotNetClient には足さない。ツール側が読む）。**旧名は受け付けず、検出して例外を投げる**（決定、N4） |
 | Web アプリ全般 | `<アプリ ID>_DB_PROVIDER`・`_DB_CONNECTIONSTRING`・`_DB_ALLOW_INSECURE` | Core の `AppDatabase.cs:81-89` | 変更なし |
+| AtomFeed・CalendarFeed・Questionnaire | `PLEASANTER_ALLOW_INSECURE_HTTP`。接続設定を自前で組み立てて DotNetClient へ渡すので、DotNetClient の `FromEnvironment()` の読み取りは届かず、各アプリが読む。IdentityProvider は読まない | AtomFeed・CalendarFeed: `{P}.Pleasanter/PleasanterGateway.cs:20`。Questionnaire: `{P}.Pleasanter/PleasanterOptions.cs:32`（各リポジトリの `origin/develop`、2026-11-09） | `VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`（6.1 の共通の 5 変数のひとつ）。定数はアプリごとに直す。旧名は旧名の検出で案内（`PleasanterEnvironmentNames.Legacy` に含む） |
+| 同 3 アプリの接続設定 | `<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`（と、`_APIKEY_FILE` があるアプリはそれ）・`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL`（設定ファイル・管理画面の項目と対応するアプリの設定。例は AtomFeed の `ATOMFEED_PLEASANTER_BASEURL`） | AtomFeed: `{P}.Web/Services/AppSettingDefinitions.cs:137-142`（CalendarFeed・Questionnaire も接頭辞違いで同じ形） | **決定（2026-11-09、Core#176 の Q1）**: `<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（`_APIKEY_FILE` があれば `VVPT_PLEASANTER_API_KEY_FILE`）へ寄せる。旧名（アプリ ID 付き）は Core に書かず（アプリ固有の値）、各アプリが `LegacyEnvironmentCheck.Find` の `legacy` 引数で渡す。設定ファイル（`Pleasanter.json` など）の項目との対応は、適用の Issue で詰める。**`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` は、共通の 5 変数に無く、アプリ固有の接頭辞のまま変更しない（決定、9.6 の Q4）** |
 | McpOAuthWrapper（参考） | `MCP_GENERAL_*`・`MCP_RDS_*`（設定の接頭辞） | `Program.cs:16`、`Bridge/BridgeSetup.cs:23` | Web で CLI ではない。範囲外 |
 
 ### 6.3 共通の接頭辞の変更の影響（`PLEASANTER_*` → `VVPT_PLEASANTER_*`）
@@ -834,7 +881,8 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | DotNetClient | `PleasanterOptions.FromEnvironment()` が読む 4 つの変数（上の表）。公開 API の挙動の変更。**他のツールと同時に改名し、DotNetClient の次の版（0.5.0 以降）で行う。破壊的変更として告知する。** 例外（旧名を残す）は設けない（決定） |
 | ExtensionsMigrator・FeedIngest・MailIngest・CalendarStyleCreator | それぞれの `PleasanterEnvironment` などが読む変数。各ツールが DotNetClient の次の版へ上げるのと**同時に**揃える |
 | 運用中の設定 | Azure App Service の構成・タスクスケジューラ・systemd・コンテナ定義・CI の秘密など。旧名は、旧名の検出（`[ERROR]`・終了コード 2）で気づける |
-| 手順書・README | この変数を書いている文書。ほかのリポジトリ・ツール（この調査の対象外のものを含む）が同じ変数を読む・設定しているかは**未確認** |
+| Web アプリ（AtomFeed・CalendarFeed・Questionnaire） | `PLEASANTER_ALLOW_INSECURE_HTTP` を読む定数と、自前の接続設定（`<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`。6.2）。各アプリの `compose.yaml`・導入手順書・検証用の環境（`tools/pleasanter-testenv/`）も同じ名前で設定している。DotNetClient の改名とは独立に、各アプリで直す |
+| 手順書・README | この変数を書いている文書。ほかのリポジトリ・ツール（この調査の対象外のものを含む）が同じ変数を読む・設定しているかは、2026-11-09 に洗い出した（9.1。結果は公開しないリポジトリの情報を含むので、この文書には書かない） |
 
 ライブラリである DotNetClient には終了コードが無い。**決定（N4）**: `PleasanterOptions.FromEnvironment()` は、旧名が設定されていれば
 （新名との併用を含む。N2）検出して例外を投げる。メッセージは CLI の `[ERROR]` と同じ内容（`Environment variable X is no longer supported. Use Y.`）。
@@ -857,7 +905,8 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 3. **移行手順**。運用中の環境の設定を、どの順で直すか。直すまで動かなくなることを明記する
 4. **リリースノートでの告知**。破壊的変更として、版・旧名・新名・直し方を書く（DotNetClient は次の版）
 5. **同じ実行ファイルを参照している手順書・README・スクリプト**の洗い出し
-6. 設定ファイルが指す環境変数の名前（FeedIngest・MailIngest。利用者が決める）は、この規則の対象外で、改名しない
+6. 設定ファイルが指す環境変数の名前（FeedIngest・MailIngest。利用者が決める）は、この規則の対象外で、改名しない。
+   ただし MailIngest の `run` は、設定ファイルが API キーの環境変数名を指さないとき、共通の `VVPT_PLEASANTER_API_KEY`（と `_API_KEY_FILE`）を読む（6.2）
 7. **終了コードが変わる場合の影響**（4.1。MailIngest の `validate` が 2→1、IndexCreator の確認の拒否が 2→1 など）。
    結果を終了コードで読んでいるスクリプト・監視への影響を書く
 
@@ -873,8 +922,8 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | FeedIngest | `check`・`ingest`・`migrate`・`migrate-status`・`unlock`。位置固定の手書き。`--config 値`、`--dry-run` | 0 / 1 / 2 / 130 | なし | `PLEASANTER_*` か `FEEDINGEST_PLEASANTER_*`、`FEEDINGEST_DB_*` | `{P}.Cli/CliApp.cs:12,37-62,138-158` |
 | MailIngest | `check`・`validate`・`run`・`migrate`・`migrate-status`。配列パターンの一致。`--config 値`、`--json` | 0 / 1 / 2 / 3。中断は 1 | `run` だけ。枠なし | `PLEASANTER_*`、`MAILINGEST_DB_*` | `{P}.Cli/Program.cs:9,15-41` |
 | IndexCreator | 先頭が操作（`plan`・`_rds`・`views`・`_views`・`choice-lists`・`_choice-lists`）。`/名前 値`。パスは `/` 始まりの値も取る | 0 / 1 / 2 / 3（DB の失敗）/ 130 | なし | `INDEXCREATOR_*`（3 つ）と Pleasanter 本体の名前 | `src/IndexCreator/Options.cs:10-49`、`Program.cs:190-194` |
-| CalendarStyleCreator | `generate`・`register`。`/名前 値`。パスは `/` 始まりの値も取る | 0 / 2 / 130。**想定外の例外を捕まえていない** | なし | `CALENDARSTYLE_*`（4 つ）、`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/CalendarStyleCreator/Options.cs:37-75`、`Program.cs:58-67` |
-| Web アプリの `--migrate`（Core.Data） | `--migrate`・`--migrate-status`・`--wait-for-db N`・`--wait-for-db=N`・`--wait-for-db:N`（Core#175 で `N` と `:N` を追加。変更前は `=` の形だけ） | 0 / 1（未適用あり、DB の待機期限切れ）。変更前は待機期限切れが 2 | なし | `<アプリ ID>_DB_*` | `MigrationCommand.cs:31-79,85-111` |
+| CalendarStyleCreator | `generate`・`register`。`/名前 値`。パスは `/` 始まりの値も取る | 0 / 2 / 130。**想定外の例外を捕まえていない**（未処理で、Windows は -532462766（0xE0434352）、Linux は 134。9.1） | なし | `CALENDARSTYLE_*`（4 つ）、`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/CalendarStyleCreator/Options.cs:37-75`、`Program.cs:58-67` |
+| Web アプリの `--migrate`（Core.Data） | `--migrate`・`--migrate-status`・`--wait-for-db N`・`--wait-for-db=N`・`--wait-for-db:N`（Core#175 で `N` と `:N` を追加。変更前は `=` の形だけ） | 0 / 1（未適用あり、DB の待機期限切れ）。変更前は待機期限切れが 2 | なし | `<アプリ ID>_DB_*` | `MigrationCommand.cs:32-82,87-114` |
 
 #### 7.1.1 出力（stdout と stderr、接頭辞、言語）
 
@@ -887,7 +936,7 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | MailIngest | stdout にサマリー、stderr に `error [Code] path: message`・`warning […]`・`log level=… event=…`（`{P}.Cli/Program.cs:119-125`、`{P}.Cli/RunCommand.cs:213`） | stderr | stderr | `error [Code]`・`warning [Code]` | **あり**（`{P}.Cli/Program.cs:93,101`、`{P}.Core/PleasanterEnvironment.cs:31`） |
 | IndexCreator | すべて stdout（`RuntimeLog.WriteLine`。ファイルの NLog にも書く。`src/IndexCreator/RuntimeLog.cs:27-42`） | **stdout に `WARNING:`・`INFO:`**（`Program.cs:68,76`）。確認の質問も stdout（同 183） | stderr に `ERROR: …` | `ERROR:`・`WARNING:`・`INFO:` | なし |
 | CalendarStyleCreator | stdout（`src/CalendarStyleCreator/RuntimeLog.cs:6-7`） | 無し | stderr に `ERROR: …`、`Canceled.` | `ERROR:` | なし |
-| Web アプリの `--migrate` | 結果は stdout（`MigrationCommand.cs:63,66-69,78`）。進行表示は stderr（同 48）。Core#175 で変更（変更前は進行表示も stdout） | 無し | 待機期限切れは stderr の `[ERROR]`（同 53-55）。変更前は接頭辞なし | 適用済み・適用完了は `[OK]`。Core#175 で追加 | メッセージはなし。Core.Data の例外メッセージの日本語は Core#175 で英語にした（下の注） |
+| Web アプリの `--migrate` | 結果は stdout（`MigrationCommand.cs:65,68-73,80`）。進行表示は stderr（同 49）。Core#175 で変更（変更前は進行表示も stdout） | 無し | 待機期限切れは stderr の `[ERROR]`（同 54-58。固定文言と例外の型名だけ。Core#176）。変更前は接頭辞なし | 適用済み・適用完了は `[OK]`。Core#175 で追加 | メッセージはなし。Core.Data の例外メッセージの日本語は Core#175 で英語にした（下の注） |
 
 日本語のメッセージの注: Core.Data の `AppDatabase.ParseProvider` と `ConnectionSecurity.EnsureSecure` は、**日本語の例外メッセージ**を投げていた。
 FeedIngest・MailIngest の `migrate`・`run`・`unlock` は、その `ex.Message` をそのまま stderr へ出す
@@ -929,7 +978,7 @@ IdentityProvider は、Core の `MigrationCommand` と**ほぼ同じ内容の複
 | 結果と診断 | 全部 stdout のツール（BinaryMigrator・IndexCreator・CalendarStyleCreator）、警告を stdout に出すツール（DatabaseConverter・IndexCreator）、エラーに接頭辞のないツール（ExtensionsMigrator・FeedIngest） | 結果は stdout、診断は stderr（2.2） |
 | 接頭辞 | `Error:`・`ERROR:`・`error [Code]`・`error:`・接頭辞なしの 5 通り。`[OK]` は無し | `[OK]`・`[WARN]`・`[ERROR]`（2.3） |
 | 終了コード | 中断が 130（FeedIngest・IndexCreator・CalendarStyleCreator）と 1（ほか 4 つ）。3 の意味が「残りあり」（MailIngest）と「DB の失敗」（IndexCreator）。`validate` の問題が 1（ExtensionsMigrator）と 2（MailIngest）。`plan` の衝突が 0 | 表のとおり（4 章） |
-| 想定外の例外 | MailIngest は 1＋文言を出さない。CalendarStyleCreator は**捕まえない**（未処理のときの終了コードは実行環境による。未確認） | すべて 1＋`[ERROR]`（4 章） |
+| 想定外の例外 | MailIngest は 1＋文言を出さない。CalendarStyleCreator は**捕まえない**（未処理で、終了コードは実行環境による。確認した: Windows は -532462766、Linux は 134。9.1） | すべて 1＋`[ERROR]`（4 章） |
 | `--json` | MailIngest の `run` だけ。枠なし・整形あり | すべての結果を出すコマンドで、枠つき（3 章） |
 | 日本語の出力 | FeedIngest・MailIngest に直書き（Core.Data の例外メッセージは Core#175 で英語にした） | ASCII・英語（2.1） |
 | 環境変数 | `BINARY_MIGRATOR_`・`DBCONV_`・`CALENDARSTYLE_`・`INDEXCREATOR_`・`FEEDINGEST_PLEASANTER_` など、接頭辞の作り方がばらばら | `ツール名_`・共通は `VVPT_PLEASANTER_`（6 章） |
@@ -959,13 +1008,14 @@ flowchart TD
     S6 --> S7["7. IndexCreator"]
     S7 --> S8["8. CalendarStyleCreator"]
     D --> S8
-    S1b --> S9["9. Web アプリの --migrate<br/>AtomFeed・CalendarFeed・IdP・Questionnaire"]
+    S1b --> S9["9. Web アプリの --migrate と<br/>VVPT_PLEASANTER_* への改名<br/>AtomFeed・CalendarFeed・IdP・Questionnaire"]
+    D --> S9
 ```
 
 | 順 | 対象 | 理由 | 適用 Issue に書く主な影響 |
 |---|---|---|---|
-| 1 | Core.Cli・Core.Cli.Testing の実装 | 部品が無いと始まらない。新パッケージは、nuget.org のポリシー・`release.yml`・リリース手順書の更新が要る。補完（3 シェル。ファイル名・動的な値を含む）の保守・テストの手間が最大。`VVPT_PLEASANTER_*` の定数は `Core.Contracts`、旧名の検出は `Core.Cli` が持つ（N6） | 公開 API の追加。各ツールの追随は Issue に残す |
-| 1b | Core.Data の `MigrationCommand`・例外メッセージ | FeedIngest・MailIngest・Web アプリが共通で使う。Core 側の直しなので先に。`Core.Cli` は参照せず、`TextWriter` を受けて文言・終了コードだけを揃える（U12） | DB の待機期限切れ 2→1。`--wait-for-db N` の形。例外メッセージの英語化（公開 API の挙動の変更） |
+| 1 | Core.Cli・Core.Cli.Testing の実装（**実装済み**。公開は Core#177） | 部品が無いと始まらない。新パッケージは、nuget.org のポリシー・`release.yml`・リリース手順書の更新が要る。補完（3 シェル。ファイル名・動的な値を含む）の保守・テストの手間が最大。`VVPT_PLEASANTER_*` の定数は `Core.Contracts`、旧名の検出は `Core.Cli` が持つ（N6） | 公開 API の追加。各ツールの追随は Issue に残す |
+| 1b | Core.Data の `MigrationCommand`・例外メッセージ（**実装済み**。Core#175・#176） | FeedIngest・MailIngest・Web アプリが共通で使う。Core 側の直しなので先に。`Core.Cli` は参照せず、`TextWriter` を受けて文言・終了コードだけを揃える（U12） | DB の待機期限切れ 2→1。`--wait-for-db N` の形。例外メッセージの英語化（公開 API の挙動の変更） |
 | 1c | DotNetClient の次の版（0.5.0 以降） | 共通の `VVPT_PLEASANTER_*` の元。ほかのツールが先に改名できない | **公開済み 0.4.0 を含む破壊的変更**。旧名は受け付けず、検出して例外を投げる（N4）。`API_KEY_FILE` は足さない。リリースノートで告知 |
 | 2 | ExtensionsMigrator | 最も新しく、CLI のみ（GUI は作らない）。コマンドが複数あり、`CommandContext`・`ICommand` が土台になるので、部品の形を試せる | `plan` の衝突 0→1。余計な引数がエラーに。中断 130。`--json`。環境変数 `VVPT_PLEASANTER_*`（`API_KEY_FILE` を追加） |
 | 3 | DatabaseConverter | 3 重実装のうち 1 つ。環境変数の改名がある | `WARNING:` が stderr の `[WARN]` へ。`DBCONV_*`→`DATABASE_CONVERTER_*`。中断 130 |
@@ -974,35 +1024,43 @@ flowchart TD
 | 6 | MailIngest | `validate` の終了コード、`run --json` の形が変わる（出力を読む側に影響） | **`validate` の中身の問題が 2→1**。`--json` の枠。日本語メッセージの英語化。中断 130。環境変数 `VVPT_PLEASANTER_*` |
 | 7 | IndexCreator | `/名前` の既存の書式は保てる。3 の意味が変わる。内部の操作名（`_rds` など）は残す（U17） | DB の失敗 3→1。**確認の拒否 2→1**。`plan` は 0 のまま。警告・質問が stderr へ。`INDEXCREATOR_*`→`INDEX_CREATOR_*`。`--yes`/`-y` |
 | 8 | CalendarStyleCreator | 想定外の例外を 1 にする | `CALENDARSTYLE_*`→`CALENDAR_STYLE_CREATOR_*`。`CALENDARSTYLE_PLEASANTER_API_KEY` は `VVPT_PLEASANTER_API_KEY` へ統合。`PLEASANTER_ALLOW_INSECURE_HTTP` の改名。`[OK]`・`[ERROR]` |
-| 9 | Web アプリ（AtomFeed・CalendarFeed・IdentityProvider・Questionnaire） | 1b のあと。IdentityProvider は自前の複製を Core の版へ寄せる | `--migrate` の出力と終了コード |
+| 9 | Web アプリ（AtomFeed・CalendarFeed・IdentityProvider・Questionnaire） | 1b のあと。IdentityProvider は自前の複製を Core の版へ寄せる。AtomFeed・CalendarFeed・Questionnaire は `PLEASANTER_ALLOW_INSECURE_HTTP` と、自前の接続設定（`<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`）も共通の `VVPT_PLEASANTER_*` へ寄せる（DotNetClient の次の版のあと） | `--migrate` の出力と終了コード。環境変数 `PLEASANTER_ALLOW_INSECURE_HTTP`→`VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`、`<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（compose・導入手順書・検証用の環境も。旧名の検出はアプリが `Find` の引数で渡す） |
 
 置き換えのたびに、旧名と新名の対応表・移行手順・リリースノート（6.4）を書く。リリースは、Core・各ツールとも
 `release.yml` の dry-run を先に回し、タグは付け直せないことに注意する。
 
 ## 9. 未決・要確認
 
-**質問としての未決は残っていない**（2026-11-09 に、U1〜U18 と N1〜N6 のすべてに回答があった）。
-決定（Q1〜Q7 と、2026-11-09 の回答）は覆さない。実装時に新しい疑問が出たら、ここへ質問として足す。
+U1〜U18 と N1〜N6 のすべてに、2026-11-09 に回答があった。**質問としての未決は無い（Core#176 で見つかった 9.6 の Q1〜Q5 にも、2026-11-09 に回答があった）。**
+決定（Q1〜Q7 と、2026-11-09 の回答）は覆さない。実装時に新しい疑問が出たら、ここへ質問として足す（9.6）。
 
-### 9.1 未確認（実機・実コード）
+### 9.1 未確認（実機・実コード）と、確認した結果
+
+確認は 2026-11-09（Core#176）。環境は、Windows 11 10.0.26300.9711・.NET 10.0.14・PowerShell 7.6.9・Windows PowerShell 5.1.26100.9711・
+Windows Terminal・Docker（`mcr.microsoft.com/dotnet/sdk:10.0`、Ubuntu 24.04.5）。確認用の小さなコンソールアプリで、`GetConsoleMode` の値と
+`CliOutput.ForConsole` が書く行を見た。**画面の色の見え方（目視）は、取っていない。**
 
 | 項目 | 状態 |
 |---|---|
-| Kudu の Debug console が端末（TTY）として見えるか | **未確認。** 見えて ANSI がそのまま表示される場合は、`--color auto\|always\|never` を足す案へ切り替える（Q2） |
-| Windows のコンソール・Windows Terminal・Linux で、ANSI の色（31〜33）が読めるか | 未確認。仮想端末の処理が有効かも含む |
-| `System.Text.Json` の既定のエンコーダーが非 ASCII を `\uXXXX` にするか | 実装でテストして固定する。既定の挙動に頼らない |
-| CalendarStyleCreator で想定外の例外が起きたときの終了コード | 未確認（`src/CalendarStyleCreator/Program.cs:58-67` は捕まえない） |
-| 補完の 3 シェル（PowerShell・bash・zsh）での実際の挙動と CI での確かめ方 | **確認した**（Core#173。5.5）。CI は Linux の bash・PowerShell のみ、zsh は手元（コンテナ）、Windows・macOS は未確認 |
-| `VVPT_PLEASANTER_*` を読み書きしている、この調査の対象外のリポジトリ・手順書 | 未確認（6.3） |
+| Kudu の Debug console が端末（TTY）として見えるか | **未確認（ユーザーの実機待ち）。** 結果は、ユーザーが実機で確かめたときに教えてもらい、ここへ反映する。見えて ANSI がそのまま表示される場合は、`--color auto\|always\|never` を足す案へ切り替える（Q2）。それまで「色は自動判定だけ」の決定は変えない |
+| Windows のコンソール・Windows Terminal・Linux で、ANSI の色（31〜33）と `ESC[0m` が読めるか。仮想端末の処理が有効か | **確認した（一部に食い違いあり）。** 下の 3 行 |
+| └ Windows Terminal・ConPTY のターミナル（Claude Desktop の統合ターミナル。PowerShell 7.6.9・cmd.exe） | stdout・stderr とも `GetConsoleMode` が 0x7 で、仮想端末の処理（`ENABLE_VIRTUAL_TERMINAL_PROCESSING` = 0x4）が**有効**。`CliOutput.ForConsole` は色あり（端末・`NO_COLOR` 未設定）と判定し、`ESC[32m[OK]ESC[0m` などを書く。判定と実機は合う |
+| └ 従来のコンソール（`conhost.exe`。アプリを直接起動、または `cmd.exe /c`・Windows PowerShell 5.1・PowerShell 7 の `-Command` 経由） | 確認時（Core#176 の修正前）は、mode が 0x3 で、仮想端末の処理が**無効**なのに、`ForConsole` は色ありと判定した。ESC が解釈されず `←[32m` のような文字で出る恐れがあった（画面は目視していない）。**修正した（Q2。2.4 の 4）:** `ForConsole` が `SetConsoleMode` で有効にする。修正後は、同じ起動方法で mode が 0x3 から 0x7 になり、リダイレクトされた出力先には触らないことを確かめた |
+| └ Linux（Docker の `docker run -t`。bash） | 端末（TTY）では `ESC[32m[OK]ESC[0m`・`ESC[33m[WARN]…`・`ESC[31m[ERROR]…` が出て、`[INFO]` は色なし。`NO_COLOR=1`（TTY）は色なし、`NO_COLOR=` 空は色あり、パイプ（stdout がリダイレクト）は stdout だけ色なしで stderr（TTY）は色あり。判定と実機は合う。確認時は `TERM=dumb` でも色が出た。**修正した（Q3。2.4 の 3）:** `TERM=dumb` は TTY でも色なし（`ESC[?1h ESC=` も出ない）。.NET の `Console` が、TTY で最初に書くときに、こちらが頼んでいない `ESC[?1h ESC=`（キーパッドの送信モード）を stdout の先頭へ出す（`--json` を TTY へ出すと JSON の前に付く。リダイレクトでは出ない。**直さず、既知の挙動とする（決定、9.6 の Q5）**） |
+| `System.Text.Json` の既定のエンコーダーが非 ASCII を `\uXXXX` にするか | **確認した。** 既定のエンコーダーは非 ASCII・サロゲートペアを `\uXXXX` にする（`JsonSerializer`・`Utf8JsonWriter` とも。`<`・`>`・`&`・`'` も）。`JsonResult` は `JavaScriptEncoder` を明示済みで、`JsonTests` が固定している（3.3） |
+| CalendarStyleCreator で想定外の例外が起きたときの終了コード | **確認した。** `origin/develop`（`91dcaeb`）を作業用のコピーでビルドし、`/output` に既存のファイルを指定して `IOException` を起こした。捕まえず（`Program.cs` の `catch` は `UserError` と `OperationCanceledException` だけ）、スタックトレースを stderr に出す。終了コードは Windows が -532462766（0xE0434352。bash などでは下位 8 ビットの 82 に見える）、Linux（Docker）が 134（SIGABRT）。4 章の「想定外の例外は 1 と `[ERROR]`」に合わない。適用の Issue（8 章の順 8）で直す。なお、接続できない iCal の URL・存在しない CSV は、`UserError` として 2 になる |
+| 補完の 3 シェル（PowerShell・bash・zsh）での実際の挙動と CI での確かめ方 | **確認した**（Core#173・#183。5.5）。CI は Linux の bash・PowerShell のみ。手元では、bash 5.3（Git for Windows）・PowerShell 7.6.9・Windows PowerShell 5.1・zsh 5.9（Alpine のコンテナ）で、コマンド名・オプション・列挙・ファイル名・動的な値（偽のツール）が通った。Windows PowerShell 5.1 は `--` だけでは呼ばれない（制限）。**未確認:** macOS（bash 3.2・zsh）、Linux 上の PowerShell の手元での確認（CI で確かめる）、bash の readline 経由の実際の Tab 入力、`bash-completion` 入りの環境、実際のツールの実行ファイルでの `__complete` の往復 |
+| `VVPT_PLEASANTER_*`（旧名 `PLEASANTER_*`）を読み書きしている、この調査の対象外のリポジトリ・手順書 | **洗い出した**（2026-11-09。Dealer と Pleasanter.Manual を除く、手元のすべてのリポジトリの `origin/develop`〈無ければ `main`〉を `git grep`）。公開リポジトリの結果は DotNetClient の改名の Issue に書いた。公開しないリポジトリの内容は、この文書には書かない（9.5）。6.3 の「未確認」は、この洗い出しで解消した。適用の Issue ごとに、改名のあとに旧名が残らないよう再確認する |
 
 ### 9.2 提案から決定になったもの（2026-11-09）
 
-| 項目 | 現在の案 |
+ヘルプの `-?`・`/?` は、5.1 の表（決定）が正で、実装済み（#170）。ここの一覧からは外した（Core#176）。
+
+| 項目 | 決定 |
 |---|---|
 | `[INFO]` | **決定（2026-11-09）**: 設ける（補足。色なし、stdout）。進行表示は接頭辞なし・stderr |
 | `warnings` | **決定（2026-11-09）**: 枠に入れる（`errors` と同じ形。無くても空の配列） |
 | ANSI の色の対応 | **決定（2026-11-09）**: 標準の 16 色の前景のみ。`[OK]`=32、`[WARN]`=33、`[ERROR]`=31、`[INFO]`=色なし。接頭辞の部分だけ。装飾・背景・256 色は使わない |
-| ヘルプの `-?`・`/?` | **決定（2026-11-09）**: 受ける（#170 で実装済み） |
 
 ### 9.3 決定済みの一覧（ユーザー、2026-11-09）
 
@@ -1043,7 +1101,7 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 |---|---|
 | 補完の動的な値の範囲・方式 | **解消**（Core#173）。隠しコマンド `__complete` で呼び戻す。時間制限はツールごと（既定 2 秒）。失敗・時間超過は何も出さない。どの値を動的にするかは各ツールの適用 Issue（`OptionValueCompletion.Dynamic` と `CompletionProvider`） |
 | 補完のテスト | **解消**（Core#173）。生成物の固定は 3 シェル、実機は Linux の bash・PowerShell だけ CI。動的な値は接続先を要するので各ツール側 |
-| `API_KEY_FILE` を読む共通の部品 | ファイルと環境変数の優先順・空白と改行の扱い・読めないときのエラー（決定、N4。細部は実装の Issue） |
+| `API_KEY_FILE` を読む共通の部品 | **解消**。`Core.Cli` の `PleasanterApiKey`（5.6）。環境変数とファイルはどちらか片方（両方あれば使い方の誤り）、ファイルは前後の空白・改行を除き、読めない・空はエラー（メッセージにキー・中身は含めず、パスは含める） |
 | DotNetClient の旧名の検出の持ち方 | 解消。DotNetClient は `Core.Contracts` だけを参照し、対応表（`PleasanterEnvironmentNames.Legacy`）を共有する。検出の処理は DotNetClient 側に書く（Core#181。適用は DotNetClient の Issue） |
 | 旧名の対応表の実装 | `PleasanterEnvironmentNames.Legacy` の中身は、6.2 の表を元にする |
 | 契約テストの範囲 | **解消**（Core#174）。規則は 5.7 の表。`MigrationCommand` のずれは「既知の違反」として固定し、Core#175 で直したら外す。`MigrationCommand` の `--migrate-status`（未適用あり=1）は「検査の失敗」の 1 として 4 章に決定を足した（Core#175） |
@@ -1052,6 +1110,16 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 
 Core は Public、決定の元になった記録は internal。この文書は決定の内容を書いたもので、リンクと文面の転記は含まない。
 公開範囲の判断は、PR でユーザーに確認する。
+
+### 9.6 Core#176 の質問と回答（1.3 の Q1〜Q7 とは別の番号）
+
+| 番号 | 質問 | 状態 |
+|---|---|---|
+| Q1 | AtomFeed・CalendarFeed・Questionnaire が自前で持つ Pleasanter への接続設定（6.2）を、共通の `VVPT_PLEASANTER_*` へ寄せるか | **決定（2026-11-09）**: 寄せる。`<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（と `_API_KEY_FILE`）。6.2・8 章へ反映 |
+| Q2 | Windows の従来のコンソールで ESC がそのまま出る恐れ（9.1）に、`CliOutput.ForConsole` が仮想端末の処理を有効にし、できなければ色なしにするか | **決定（2026-11-09）**: する。`Core.Cli` に実装した（2.4 の 4。`ConsoleVirtualTerminal`、`kernel32` の P/Invoke 3 関数） |
+| Q3 | `TERM=dumb` のとき色を出さないか | **決定（2026-11-09）**: 出さない。実装した（2.4 の 3） |
+| Q4 | Web アプリ 3 つの接続設定のうち、共通の 5 変数に無い `_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` をどうするか | **決定（2026-11-09）: アプリ固有の接頭辞のまま変更しない。**`_APIVERSION`・`_TIMEOUTSECONDS` は DotNetClient の既定と同じ性質で共通にもできるが、`_TIMEZONE`（API キーの利用者の設定）と `_LINKBASEURL`（アプリの画面の URL）はアプリごとに違い得て、共通にすると取り違えやすいため |
+| Q5 | .NET の `Console` が、TTY の stdout の先頭へ `ESC[?1h ESC=`（キーパッドの送信モード）を出す（9.1。`--json` を TTY へ出すと JSON の前に付く）ことをどうするか | **決定（2026-11-09）: 直さず、既知の挙動として書く。** `--json` は機械が読むもので、パイプ・リダイレクトで使う前提。リダイレクトでは出ないので、機械が読む場合には影響しない（端末へ直接出したときの表示だけの話） |
 
 ## 10. この仕様書の範囲外
 
