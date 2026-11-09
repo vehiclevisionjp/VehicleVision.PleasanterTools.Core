@@ -1,3 +1,5 @@
+using VehicleVision.PleasanterTools.Core.Contracts;
+
 namespace VehicleVision.PleasanterTools.Core.Cli.Tests;
 
 /// <summary>共通の API キーの読み方の試験（環境変数とファイルのどちらか片方）。</summary>

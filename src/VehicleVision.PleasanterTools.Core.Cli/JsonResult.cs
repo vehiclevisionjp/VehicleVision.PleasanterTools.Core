@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
+using VehicleVision.PleasanterTools.Core.Contracts;
 
 namespace VehicleVision.PleasanterTools.Core.Cli;
 
@@ -36,18 +37,18 @@ public static class JsonResult
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(errors);
         ArgumentNullException.ThrowIfNull(warnings);
-        if (ok != (exitCode == ExitCodes.Success))
+        if (ok != (exitCode == ExitCodeValues.Success))
         {
             throw new ArgumentException("ok must be true only when the exit code is 0.", nameof(ok));
         }
 
         return Write(writer =>
         {
-            writer.WriteString("command", command);
-            writer.WriteBoolean("ok", ok);
-            writer.WriteNumber("exitCode", exitCode);
-            WriteIssues(writer, "errors", errors, redact);
-            WriteIssues(writer, "warnings", warnings, redact);
+            writer.WriteString(JsonKeys.Command, command);
+            writer.WriteBoolean(JsonKeys.Ok, ok);
+            writer.WriteNumber(JsonKeys.ExitCode, exitCode);
+            WriteIssues(writer, JsonKeys.Errors, errors, redact);
+            WriteIssues(writer, JsonKeys.Warnings, warnings, redact);
             writeFields?.Invoke(writer);
         });
     }
@@ -59,9 +60,9 @@ public static class JsonResult
         ArgumentNullException.ThrowIfNull(version);
         return Write(writer =>
         {
-            writer.WriteString("command", "version");
-            writer.WriteBoolean("ok", true);
-            writer.WriteString("version", version);
+            writer.WriteString(JsonKeys.Command, "version");
+            writer.WriteBoolean(JsonKeys.Ok, true);
+            writer.WriteString(JsonKeys.Version, version);
         });
     }
 
@@ -83,11 +84,11 @@ public static class JsonResult
         foreach (var issue in issues)
         {
             writer.WriteStartObject();
-            writer.WriteString("code", issue.Code);
-            writer.WriteString("message", redact is null ? issue.Message : redact(issue.Message));
+            writer.WriteString(JsonKeys.Code, issue.Code);
+            writer.WriteString(JsonKeys.Message, redact is null ? issue.Message : redact(issue.Message));
             if (issue.Path is not null)
             {
-                writer.WriteString("path", redact is null ? issue.Path : redact(issue.Path));
+                writer.WriteString(JsonKeys.Path, redact is null ? issue.Path : redact(issue.Path));
             }
             writer.WriteEndObject();
         }

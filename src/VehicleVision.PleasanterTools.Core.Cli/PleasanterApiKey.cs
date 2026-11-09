@@ -1,3 +1,5 @@
+using VehicleVision.PleasanterTools.Core.Contracts;
+
 namespace VehicleVision.PleasanterTools.Core.Cli;
 
 /// <summary>

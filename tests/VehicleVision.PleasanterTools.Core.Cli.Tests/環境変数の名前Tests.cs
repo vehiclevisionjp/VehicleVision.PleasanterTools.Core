@@ -1,54 +1,14 @@
+using VehicleVision.PleasanterTools.Core.Contracts;
+
 namespace VehicleVision.PleasanterTools.Core.Cli.Tests;
 
-/// <summary>仕様書 6 章の試験。共通の名前・旧名の検出・接頭辞・真偽。</summary>
+/// <summary>仕様書 6 章の試験。旧名の検出・接頭辞・真偽（名前そのものは Core.Contracts.Tests）。</summary>
 public sealed class 環境変数の名前Tests
 {
     private static Func<string, string?> Env(params (string Name, string Value)[] values)
     {
         var map = values.ToDictionary(v => v.Name, v => v.Value, StringComparer.Ordinal);
         return name => map.GetValueOrDefault(name);
-    }
-
-    [Fact]
-    public void 共通の名前は6_2の表と一致する()
-    {
-        Assert.Equal("VVPT_PLEASANTER_BASE_URL", PleasanterEnvironmentNames.BaseUrl);
-        Assert.Equal("VVPT_PLEASANTER_API_KEY", PleasanterEnvironmentNames.ApiKey);
-        Assert.Equal("VVPT_PLEASANTER_API_KEY_FILE", PleasanterEnvironmentNames.ApiKeyFile);
-        Assert.Equal("VVPT_PLEASANTER_ALLOW_INSECURE_HTTP", PleasanterEnvironmentNames.AllowInsecureHttp);
-        Assert.Equal("VVPT_PLEASANTER_SERVER_VERSION", PleasanterEnvironmentNames.ServerVersion);
-    }
-
-    [Fact]
-    public void 旧名の対応は6_2の表と一致する()
-    {
-        var expected = new Dictionary<string, string>
-        {
-            ["PLEASANTER_BASE_URL"] = "VVPT_PLEASANTER_BASE_URL",
-            ["PLEASANTER_API_KEY"] = "VVPT_PLEASANTER_API_KEY",
-            ["PLEASANTER_API_KEY_FILE"] = "VVPT_PLEASANTER_API_KEY_FILE",
-            ["PLEASANTER_ALLOW_INSECURE_HTTP"] = "VVPT_PLEASANTER_ALLOW_INSECURE_HTTP",
-            ["PLEASANTER_SERVER_VERSION"] = "VVPT_PLEASANTER_SERVER_VERSION",
-            ["FEEDINGEST_PLEASANTER_BASE_URL"] = "VVPT_PLEASANTER_BASE_URL",
-            ["FEEDINGEST_PLEASANTER_API_KEY"] = "VVPT_PLEASANTER_API_KEY",
-            ["FEEDINGEST_PLEASANTER_API_KEY_FILE"] = "VVPT_PLEASANTER_API_KEY_FILE",
-            ["CALENDARSTYLE_PLEASANTER_API_KEY"] = "VVPT_PLEASANTER_API_KEY",
-        };
-        Assert.Equal(expected.OrderBy(p => p.Key), PleasanterEnvironmentNames.Legacy.OrderBy(p => p.Key));
-    }
-
-    [Fact]
-    public void 旧名の行き先はすべて共通の名前()
-    {
-        var names = new[]
-        {
-            PleasanterEnvironmentNames.BaseUrl,
-            PleasanterEnvironmentNames.ApiKey,
-            PleasanterEnvironmentNames.ApiKeyFile,
-            PleasanterEnvironmentNames.AllowInsecureHttp,
-            PleasanterEnvironmentNames.ServerVersion,
-        };
-        Assert.All(PleasanterEnvironmentNames.Legacy.Values, v => Assert.Contains(v, names));
     }
 
     [Fact]
@@ -111,7 +71,7 @@ public sealed class 環境変数の名前Tests
 
         var code = LegacyEnvironmentCheck.Report(output, env);
 
-        Assert.Equal(ExitCodes.UsageError, code);
+        Assert.Equal(ExitCodeValues.UsageError, code);
         Assert.Equal(
             "[ERROR] Environment variable PLEASANTER_BASE_URL is no longer supported. Use VVPT_PLEASANTER_BASE_URL." + Environment.NewLine,
             stderr.ToString());
@@ -126,7 +86,7 @@ public sealed class 環境変数の名前Tests
         var env = Env((PleasanterEnvironmentNames.ApiKey, "x"));
         var output = new CliOutput(stdout, stderr, env, false, false);
 
-        Assert.Equal(ExitCodes.Success, LegacyEnvironmentCheck.Report(output, env));
+        Assert.Equal(ExitCodeValues.Success, LegacyEnvironmentCheck.Report(output, env));
         Assert.Equal(string.Empty, stdout.ToString() + stderr);
     }
 
