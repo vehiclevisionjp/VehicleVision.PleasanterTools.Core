@@ -402,17 +402,31 @@ Exit codes:
 - **保守とテストの手間が最大になる。** シェルごとに生成物の文法・読み込みの手順・動的な補完の方式が違い、
   3 つの生成物を、定義の変更のたびに実際のシェルで確かめる必要がある。Windows・Linux・macOS、PowerShell の版の違い、
   bash の補完の仕組み（`bash-completion` の有無）と zsh の `compinit` の有無も、挙動を左右する。
-  実機で確かめる CI のジョブを持つか、生成物の文字列をテストで固定するだけに留めるかは、実装の Issue で決める
+  **決定（Core#173、2026-11-09）**: 生成物の文字列を固定するテストは 3 シェルとも持つ。実機での確認は、**Linux の bash と PowerShell だけ**
+  CI で行う（列挙・ファイル名・オプション名・コマンド名。動的な値はツール本体の実行ファイルが要るので対象外）。
+  zsh・Windows・macOS は CI に入れず、手元で確かめた結果を PR に残す
 - **決定（N1）**: 利用者の入口は、各ツールの `completion <shell>` コマンドが、そのシェル用のスクリプトを stdout へ出す形
 - **決定（N1）**: 補完の対象は、コマンド名・オプション名（`--名前` の形）・値が列挙のオプションの候補に加えて、
   **ファイル名と動的な値**（DB への問い合わせで得る候補など）も補完する
-- **動的な値の範囲・方式は、設計（実装の Issue）で詰める。** 候補を返す側の呼び出し方（生成したスクリプトが、
-  ツール本体を隠しコマンドで呼び戻す方式など）、時間制限、失敗したとき（接続できない・秘密が無い）に何も出さない扱い、
-  補完のために秘密（接続文字列）を端末へ出さないことが論点になる
+- **決定（Core#173、2026-11-09）動的な値は、隠しコマンドで呼び戻す方式。** コマンド名・オプション名・列挙の値・ファイル名は、
+  生成したスクリプトが（ツールを起動せずに）解決する。動的な値だけが、補完のたびに `ツール名 __complete 〈オプション名〉 〈入力中の語〉` を呼び、
+  本体が `ToolSpec` と `CompletionProvider`（5.6）で候補を 1 行 1 つで stdout へ返す。候補のロジックは 3 シェルで共有する。
+    - 失敗したとき（接続できない・秘密が無い）・時間超過・取り消しは、**何も出さず**（stderr にも出さず）終了コード 0 で戻る。
+      例外の文言は出さない。補完のために秘密（接続文字列など）を端末へ出さない（候補は `redact` で値が変わるものを出さない）
+    - 時間制限は、`CompletionSettings.Timeout` で**ツールごとに決められる**（Core の既定は 2 秒）
+    - 候補は、入力中の語で始まり、引用なしで 3 シェルへ渡せる ASCII の 1 語（英数字と `. _ : / @ + , = % ~ -`）だけ。
+      空白・引用符・非 ASCII を含む値は出さない（文字化けと引用の事故を避ける）
+    - `__complete` はツールの定義にできない名前（先頭が `_`）で、ヘルプ・補完の候補・使い方の誤りの案内に出ない
+- シェルごとの差と、今の制限（Core#173）:
+    - bash は説明を表示できない。PowerShell・zsh はコマンド・オプションの説明を候補の説明（ツールチップ）に使う
+    - 補完するのは `--名前 値` の形（`--名前=値`・`/名前`・`-名前` の綴りは補完しない）。ファイル名は各シェルの標準の補完に任せる
+    - PowerShell は、候補が無いとき（`File` の指定・動的な値が空など）、標準のファイル名補完に戻る（止める手段を、実機で確かめられなかった）。
+      Windows PowerShell 5.1 は、`--` だけの入力では補完の処理が呼ばれない（`--m` のように 1 文字以上で効く）
+    - zsh は `compinit` の後に読み込む。bash は `bash-completion` なしで動く（bash 3.2 でも動く書き方）
 - **動的な値・ファイル名の補完は、シェルごとの差が大きい**（PowerShell・bash・zsh で、候補を返す仕組みと、
   パスの区切り・引用の扱い・説明の表示が違う）。**テストの手間は、列挙だけの補完より大きく増える**
   （DB に接続して候補を得るものは、接続先を用意した試験が要る）
-- 提案: 生成物は ASCII。ヘルプの説明文は、補完の候補の説明へ使ってよい（ASCII なので化けない）
+- **決定（Core#173、2026-11-09）**: 生成物は ASCII（LF の改行）。ヘルプの説明文は、補完の候補の説明へ使ってよい（ASCII なので化けない）
 - Kudu の Debug console では使えないが、補完は運用者が自分の端末で使うものなので、対象外にしない
 
 ### 5.6 公開 API の案
@@ -438,6 +452,8 @@ public sealed record OptionSpec
     public bool Required { get; init; }
     public string? EnvironmentVariable { get; init; }       // 呼び出し側が決めた名前
     public string? DefaultValue { get; init; }              // ヘルプの "(default: x)"。Value()・List() の最後の候補
+    public IReadOnlyList<string>? Values { get; init; }     // 補完の候補（列挙）。英数字で始まる ASCII の 1 語。解析は検査しない
+    public OptionValueCompletion ValueCompletion { get; init; }   // None・File・Dynamic（Values とは同時に指定できない）
 }
 
 /// <summary>コマンドの定義。</summary>
@@ -446,7 +462,8 @@ public sealed record CommandSpec(
     string Summary,
     IReadOnlyList<OptionSpec> Options,
     bool AcceptsPositionals = false,
-    int MaxPositionals = int.MaxValue);   // 位置引数の最大数
+    int MaxPositionals = int.MaxValue,    // 位置引数の最大数
+    IReadOnlyList<string>? PositionalValues = null);   // 位置引数の補完の候補（省略時はファイル名）
 
 /// <summary>ツールの定義。ツール名・説明・版は呼び出し側が渡す。</summary>
 public sealed record ToolSpec(
@@ -510,12 +527,34 @@ public enum CompletionShell { PowerShell, Bash, Zsh }
 
 public static class Completion
 {
-    public static string Generate(ToolSpec tool, CompletionShell shell);
+    public static string Generate(ToolSpec tool, CompletionShell shell);   // ASCII・LF。ツール名は英数字と . _ - だけ
+    public static bool TryParseShell(string? name, out CompletionShell shell);   // powershell・pwsh・bash・zsh
+    public static Task<IReadOnlyList<string>> CompleteAsync(                      // __complete の中身。失敗・時間超過は空
+        ToolSpec tool, CompletionSettings settings, string optionName, string currentWord, CancellationToken cancellationToken);
 }
 
-/// <summary>動的な値の候補を返す（決定: N1。方式の細部は実装の Issue で詰める）。</summary>
+/// <summary>動的な値の候補を返す（決定: N1、Core#173）。例外・時間超過のときは候補を出さずに戻る。</summary>
 public delegate Task<IReadOnlyList<string>> CompletionProvider(
     string optionName, string currentWord, CancellationToken cancellationToken);
+
+/// <summary>隠しコマンド __complete の設定。CliApplication へ渡す。</summary>
+public sealed record CompletionSettings
+{
+    public static readonly TimeSpan DefaultTimeout;   // 2 秒
+    public required CompletionProvider Provider { get; init; }
+    public TimeSpan Timeout { get; init; }            // ツールごとに変えられる（正の値）
+}
+
+/// <summary>値を取るオプションの値の補完。列挙は OptionSpec.Values。</summary>
+public enum OptionValueCompletion { None, File, Dynamic }
+
+/// <summary>各ツールが組み込む completion &lt;shell&gt; コマンド。Spec を Commands へ、CreateHandler(tool) をハンドラーへ足す。</summary>
+public static class CompletionCommand
+{
+    public const string Name = "completion";
+    public static CommandSpec Spec { get; }
+    public static CommandHandler CreateHandler(ToolSpec tool);
+}
 
 /// <summary>
 /// 製品群で共通の環境変数の名前と旧名の対応（決定: N6）。アプリ固有の値ではないので Core.Contracts が持つ。
@@ -619,7 +658,7 @@ public static class CliApplication
         TextWriter stderr,
         TextReader input,
         Func<string, string?> getEnvironmentVariable,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken);   // CliOutput を受ける形は、末尾に CompletionSettings? completion = null（隠しコマンド __complete を処理する）
 
     /// <summary>
     /// コンソールと環境変数で RunAsync を実行する。Console.CancelKeyPress を受け、
@@ -641,6 +680,12 @@ public static class CliApplication
   ④`ToolSpec` は作った時点で定義を検査する（名前の形・重複・予約語・ASCII。5.1）。引数なしは、短い使い方を stderr に出して 2（5.3）。
   ⑤1 回目の Ctrl+C の `[WARN]` の 1 行は、4 章の決定のとおり（`CliOutput` が入ったら接頭辞と色は `CliOutput` に任せる）。
   ⑥取り消しの合図が出ていれば、ハンドラーの戻り値によらず 130（優先 130 > 1 > 3 > 0）。
+- **補完の実装（#173）で、案から変えたところ**: ①列挙・ファイル・動的な値を `OptionSpec.Values`・`OptionSpec.ValueCompletion`、
+  位置引数の候補を `CommandSpec.PositionalValues` で定義する（`ToolSpec` を作る時点で検査する）。②`CompletionSettings`（提供元と時間制限）、
+  `CompletionCommand`（`completion <shell>` の定義とハンドラー）、`Completion.TryParseShell`・`CompleteAsync` を足した。
+  ③`CliApplication.RunAsync`（`CliOutput` を受ける形）と `RunWithConsoleAsync` は、省略可能な `CompletionSettings` を受け、渡されたときだけ隠しコマンド
+  `__complete` を処理する。④`CompletionProvider` の形は案のまま（コマンド名は渡さない。同じ名前のオプションは同じ候補にする）。
+  ⑤`CliOutput.WriteText`（改行を変えずに書く。内部）で、スクリプトは LF のまま出す。
 - **出力の実装（#171）で、案から変えたところ**: ①`CommandContext` は `Stdout`・`Stderr` をやめ、`CliOutput Output` を持つ（生の `TextWriter` へ直接書くと
   行が混ざり、接頭辞・ASCII 化・秘密の伏せを通らないため）。②`CliApplication.RunAsync` に、`CliOutput` を受けるオーバーロードを足した。
   `TextWriter` を受ける従来の形は、端末ではない（色なし）として `CliOutput` を作って委ねる。`RunWithConsoleAsync` は `CliOutput.ForConsole()` を使う。
@@ -699,7 +744,8 @@ public static class CliApplication
 ずれも、この契約テストで検出する（U12）。
 
 補完（決定、U1）のテストは、生成物の文字列を固定するテストに加え、可能なら実際のシェル（PowerShell・bash・zsh）での
-候補の確認を CI で行う（手間が最大。5.5）。`名前:値` とドライブ文字（`--out:C:\x`）、`--version`、`--yes`/`-y`、
+候補の確認を CI で行う（手間が最大。5.5）。**決定（Core#173）**: CI は Linux の bash と PowerShell だけ（`ci.yml` の `build-test` が
+`CLI_COMPLETION_REQUIRE_SHELLS=1` で、実機の試験が黙って飛ばされないようにする）。zsh・Windows・macOS は手元の確認。`名前:値` とドライブ文字（`--out:C:\x`）、`--version`、`--yes`/`-y`、
 Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終了）も、表に足す。
 
 ## 6. 環境変数
@@ -909,7 +955,7 @@ flowchart TD
 | Windows のコンソール・Windows Terminal・Linux で、ANSI の色（31〜33）が読めるか | 未確認。仮想端末の処理が有効かも含む |
 | `System.Text.Json` の既定のエンコーダーが非 ASCII を `\uXXXX` にするか | 実装でテストして固定する。既定の挙動に頼らない |
 | CalendarStyleCreator で想定外の例外が起きたときの終了コード | 未確認（`src/CalendarStyleCreator/Program.cs:58-67` は捕まえない） |
-| 補完の 3 シェル（PowerShell・bash・zsh）での実際の挙動と CI での確かめ方 | 未確認。実装の Issue で決める（5.5） |
+| 補完の 3 シェル（PowerShell・bash・zsh）での実際の挙動と CI での確かめ方 | **確認した**（Core#173。5.5）。CI は Linux の bash・PowerShell のみ、zsh は手元（コンテナ）、Windows・macOS は未確認 |
 | `VVPT_PLEASANTER_*` を読み書きしている、この調査の対象外のリポジトリ・手順書 | 未確認（6.3） |
 
 ### 9.2 提案から決定になったもの（2026-11-09）
@@ -928,7 +974,7 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 | 番号 | 決定 | 本文 |
 |---|---|---|
 | U1 | 補完（シェルのタブ補完）を**初版に入れる**。PowerShell・bash・zsh の 3 つに対応し、定義から生成する。保守・テストの手間が最大 | 5.5、5.6、5.7、8 |
-| N1 | 入口は各ツールの `completion <shell>`（スクリプトを stdout へ）。列挙値に加え、ファイル名と動的な値も補完する。シェルごとの差が大きく、テストの手間が増える。動的な値の範囲・方式は設計で詰める | 5.5、5.7 |
+| N1 | 入口は各ツールの `completion <shell>`（スクリプトを stdout へ）。列挙値に加え、ファイル名と動的な値も補完する。シェルごとの差が大きく、テストの手間が増える。動的な値は隠しコマンドで呼び戻す方式（Core#173 で決定） | 5.5、5.7 |
 | N2 | 旧名と新名の**両方**が設定されていても `[ERROR]`・2。移行の途中の環境は旧名を消すまで動かない（移行手順と告知に明記） | 6.1、6.4 |
 | N3 | CalendarStyleCreator の `CALENDARSTYLE_PLEASANTER_API_KEY` を `VVPT_PLEASANTER_API_KEY` へ統合。旧名は旧名の検出で案内 | 6.2、8 |
 | N4 | DotNetClient の `FromEnvironment()` は、旧名が設定されていれば検出して例外（CLI の `[ERROR]` と同じ内容）。`API_KEY_FILE` は DotNetClient に足さず、ツール側が共通の部品で読む | 5.6、6.1〜6.3、8 |
@@ -958,8 +1004,8 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 
 | 項目 | 内容 |
 |---|---|
-| 補完の動的な値の範囲・方式 | どの値を動的に補完するか（DB への問い合わせの候補など）、候補を返す仕組み、時間制限、失敗時の扱い、秘密を出さないこと。設計で詰める（決定、N1） |
-| 補完のテスト | 生成物の固定のほか、3 シェルの実機での確認を CI で持つか。動的な値は接続先を用意した試験が要る |
+| 補完の動的な値の範囲・方式 | **解消**（Core#173）。隠しコマンド `__complete` で呼び戻す。時間制限はツールごと（既定 2 秒）。失敗・時間超過は何も出さない。どの値を動的にするかは各ツールの適用 Issue（`OptionValueCompletion.Dynamic` と `CompletionProvider`） |
+| 補完のテスト | **解消**（Core#173）。生成物の固定は 3 シェル、実機は Linux の bash・PowerShell だけ CI。動的な値は接続先を要するので各ツール側 |
 | `API_KEY_FILE` を読む共通の部品 | ファイルと環境変数の優先順・空白と改行の扱い・読めないときのエラー（決定、N4。細部は実装の Issue） |
 | DotNetClient の旧名の検出の持ち方 | 解消。DotNetClient は `Core.Contracts` だけを参照し、対応表（`PleasanterEnvironmentNames.Legacy`）を共有する。検出の処理は DotNetClient 側に書く（Core#181。適用は DotNetClient の Issue） |
 | 旧名の対応表の実装 | `PleasanterEnvironmentNames.Legacy` の中身は、6.2 の表を元にする |
