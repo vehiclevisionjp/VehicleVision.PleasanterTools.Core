@@ -42,20 +42,21 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
   <!-- license:end reference-scope -->
 
 <!-- license:begin core-terms=library -->
-## 各アプリケーションに組み込まれた場合
+## VehicleVision.PleasanterTools の各ツール・各共通部品に組み込まれた場合
 
-本ソフトウェアは、当社のアプリケーション（VehicleVision.PleasanterTools の各ツール）が共通で組み込んで使う部品です。
-**当社のアプリケーションの商用契約を結んだ方には、そのアプリケーションに組み込まれた本ソフトウェアを、
-そのアプリケーションと同じ条件で提供します。** 条件は、各アプリケーションの `LICENSE-COMMERCIAL.md` と契約書によります。
-
-本ソフトウェアは、当社の共通部品 DotNetClient（LGPL・AGPL・商用のトリプルライセンス。著作権者は当社）にも組み込まれて使われます。
-**DotNetClient に組み込まれた本ソフトウェアは、DotNetClient と一体として扱い、DotNetClient の利用条件（LGPL・AGPL・商用のうち選んだもの）で提供します。**
-DotNetClient がさらに当社のアプリケーションへ組み込まれる場合は、そのアプリケーションと一体として扱います。
+本ソフトウェアは、VehicleVision.PleasanterTools の各ツール・各共通部品に組み込まれて使われます。
+**VehicleVision.PleasanterTools の各ツール・各共通部品に組み込まれた本ソフトウェアは、組み込み先と一体として扱い、組み込み先の条件で提供します。**
+組み込み先がさらに VehicleVision.PleasanterTools の別のツール・共通部品へ組み込まれる場合は、その組み込み先と一体として扱います。
+**組み込み先の商用契約を結んだ方には、組み込まれた本ソフトウェアを、その組み込み先と同じ条件で提供します。**
+条件は、組み込み先の `LICENSE-COMMERCIAL.md` と契約書によります。
 
 次の場合は、個別に契約します。
 
 - 本ソフトウェアを単体で利用する場合
-- 当社のアプリケーション以外へ組み込む場合（DotNetClient に組み込まれていても、同じです）
+- VehicleVision.PleasanterTools 以外へ、本ソフトウェアを直接組み込む場合
+
+外部のアプリケーションが VehicleVision.PleasanterTools の共通部品を利用する場合、その共通部品に組み込まれた本ソフトウェアの部分は、
+上のとおり、その共通部品の条件によります。
 <!-- license:end core-terms -->
 
 <!-- license:begin dotnetclient-terms=off -->
