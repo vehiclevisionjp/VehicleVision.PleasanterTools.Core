@@ -237,6 +237,9 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
   `e.Cancel = true` で既定の強制終了を止める（現状の全ツールが同じ）
 - **決定（U18）**: DatabaseConverter の「Ctrl+C を 2 回で強制終了」を共通の動きにする。1 回目は安全に止め、
   2 回目はすぐ終了する。どちらも終了コードは 130
+- **決定（2026-11-09、#178 の確認）**: 1 回目の Ctrl+C で、stderr に次の 1 行を出す（ASCII。2 回目で即終了することも案内する）。
+  `[WARN] Interrupted. Stopping at a safe point. Press Ctrl+C again to exit immediately.`
+  接頭辞と色は `CliOutput`（2.3）の規則に従う。2 回目は何も出さずに終了する
 - 提案: 終了コードの定数は Core に置き、各ツールは数字を直書きしない（5.6）
 
 終了コードの決定フロー（提案）:
@@ -286,7 +289,7 @@ flowchart TD
 | 名前の形 | 小文字の英数字とハイフン（`[a-z][a-z0-9-]*`）。**オプションの長い名前は 2 文字以上**（1 文字の `-x` は短縮形と区別できないため）。1 文字の短縮形は英小文字 1 文字（`h` は予約）。`help`・`version` はコマンド名・オプション名に使えない。説明などヘルプに出す文字列は ASCII の 1 行。違反は定義の時点で例外 | 提案（実装で詰めた。#170） |
 | 重複 | 同じオプションを 2 回指定したらエラー | 提案（DatabaseConverter・ExtensionsMigrator が既にそう） |
 | 必須 | 定義に `Required` を持ち、欠けたらエラー | 提案 |
-| 位置引数 | **コマンド名は必須で、先頭に置く**（前に置けるのは共通のオプションだけ。実装で詰めた。#170）。コマンドが位置引数を受けないとき、余った引数はエラー。**位置引数を使うコマンドは新しく作らない方針**。位置引数を受けるコマンドでも、`--` で始まる未知の名前だけエラーにし、`/名前`・`-名前` の未知は位置引数として通す。受ける数は `CommandSpec.MaxPositionals` で制限する（超えたら `Too many arguments.`） | 決定（U13）。上限は実装で詰めた（#170） |
+| 位置引数 | **コマンド名は必須で、先頭に置く**（前に置けるのは共通のオプションだけ。引数なしは、短い使い方を stderr に出して 2。決定、2026-11-09）。コマンドが位置引数を受けないとき、余った引数はエラー。**位置引数を使うコマンドは新しく作らない方針**。位置引数を受けるコマンドでも、`--` で始まる未知の名前だけエラーにし、`/名前`・`-名前` の未知は位置引数として通す。受ける数は `CommandSpec.MaxPositionals` で制限する（超えたら `Too many arguments.`） | 決定（U13）。上限は実装で詰めた（#170） |
 | 共通のオプション | `--help`・`--version`・`--json`、確認を省く **`--yes`（短縮形 `-y`）を全ツール共通**にする | 決定（U15、U7） |
 | 終端 | `--` 以降は、すべて位置引数 | 提案 |
 | 環境変数 | 定義に環境変数の名前を持てる。**引数 > 環境変数 > 既定値**の順（BinaryMigrator の `Value()` と同じ） | 提案 |
@@ -632,7 +635,7 @@ public static class CliApplication
   ③`OptionSpec.DefaultValue`・`CommandSpec.MaxPositionals`・`StandardOptions`・`ParsedOptions.EnsureAtMostOne`・`ExitCodes.Combine`・
   `CliApplication.RunWithConsoleAsync` を足した。
   ④`ToolSpec` は作った時点で定義を検査する（名前の形・重複・予約語・ASCII。5.1）。引数なしは、短い使い方を stderr に出して 2（5.3）。
-  ⑤1 回目の Ctrl+C で、`[WARN] Interrupted. ...` を 1 行 stderr に出す（`CliOutput` が入ったら接頭辞と色は `CliOutput` に任せる）。
+  ⑤1 回目の Ctrl+C の `[WARN]` の 1 行は、4 章の決定のとおり（`CliOutput` が入ったら接頭辞と色は `CliOutput` に任せる）。
   ⑥取り消しの合図が出ていれば、ハンドラーの戻り値によらず 130（優先 130 > 1 > 3 > 0）。
 - 設計の土台は、ExtensionsMigrator の `CommandContext`・`ICommand`（`{P}.Cli/ICommand.cs:8-31`）と、DatabaseConverter の
   `ConverterApplication`（入出力・環境変数・DB を差し替えられる。`{P}.Core/CommandLine/ConverterApplication.cs:29-43`）。
