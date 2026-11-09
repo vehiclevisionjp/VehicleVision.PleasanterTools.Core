@@ -61,7 +61,7 @@ VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共
 | Q4 | 結果を出すコマンドは、すべて `--json` に対応する。1 コマンドにつき 1 つの JSON オブジェクト。共通の枠にコマンド固有の項目を足す。`--json` のときの stdout は JSON だけ | 3 |
 | Q5 | 終了コード 0 / 1 / 2 / 3 / 130。想定外の例外は 1 にして `[ERROR]` を出す。`validate`・`plan` の終了コードが変わるツールがあり、適用の Issue で影響を書く | 4 |
 | Q6 | 引数の解析は Core の自作の共通部品。`System.CommandLine` は使わない。`/名前` を `--名前` へ正規化する。3 重実装を置き換える。ヘルプ・エラーの文言（ASCII）・補完は自作 | 5 |
-| 書式 | `--名前`・`-名前`・`/名前` の 3 つ。既知の名前のときだけオプション。1 文字の短縮形は定義したものだけで `-abc` の結合なし。`名前 値` と `--名前=値`。ヘルプは `--help`・`-h`・`-?`・`/?`。大文字小文字は区別しない案 | 5 |
+| 書式 | `--名前`・`-名前`・`/名前` の 3 つ。既知の名前のときだけオプション。1 文字の短縮形は定義したものだけで `-abc` の結合なし。`名前 値` と `--名前=値`。ヘルプは `--help`・`-h`・`-?`・`/?`。大文字小文字は区別しない（U2） | 5 |
 | Q7 | 環境変数は `ツール名_` の接頭辞。既存も一斉に移行し、**旧名は受け付けない**（破壊的変更）。適用の Issue ごとに対応表・移行手順・リリースノートを書く。**ツール間で共通のものは、当初 `PLEASANTER_` だったが、2026-11-09 にユーザーが `VVPT_PLEASANTER_*` へ変更した** | 6 |
 
 ### 1.3.1 Core の規約と、製品群で共通の値
@@ -112,11 +112,11 @@ Core は Public、決定の元になった記録は組織内部（internal）の
 | `[OK]` | 成功 | stdout | 緑（32） | 決定 |
 | `[WARN]` | 警告。処理は続く | stderr | 黄（33） | 決定 |
 | `[ERROR]` | 失敗 | stderr | 赤（31） | 決定 |
-| `[INFO]` | 補足 | stdout | なし | 提案 |
+| `[INFO]` | 補足 | stdout | なし | 決定 |
 
 - 書式は `[OK] message`、`[WARN] message`、`[ERROR] message`（提案）。メッセージは英語・ASCII の 1 行
 - 接頭辞のない行は、結果（一覧・表・要約）か、進行表示として扱う
-- `[INFO]` の採否と、進行表示の書式は未決（9 章）
+- `[INFO]` は設ける（補足。色なし、stdout）。進行表示は接頭辞なしで stderr（決定、2026-11-09。実装は #171）
 
 ### 2.4 色
 
@@ -125,11 +125,11 @@ Core は Public、決定の元になった記録は組織内部（internal）の
 1. 色を付ける行の出力先（stdout または stderr）が端末（TTY）につながっている
 2. 環境変数 `NO_COLOR` が未設定、または空
 
-提案の細部:
+細部（接頭辞の色は決定。そのほかは提案）:
 
 - 判定は出力先ごと。`ツール > result.txt` では stdout は色なし、stderr は端末なら色あり
 - 色は**接頭辞の部分だけ**に付け、メッセージは既定の色のままにする。標準の 16 色の前景（31〜33）だけを使い、
-  行の最後に `ESC[0m` でリセットする。256 色・24 ビット・太字・背景色は使わない
+  接頭辞の直後に `ESC[0m` でリセットする。256 色・24 ビット・太字・背景色は使わない
 - `[INFO]` は色なし。鉄紺のような暗い色は暗い背景で読めなくなるため
 - 色だけで意味を伝えない。接頭辞を常に付けるのはそのため
 - `--json` のときも stdout は JSON だけで、色のコードを混ぜない（stderr は上の判定に従う）
@@ -161,7 +161,7 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
 | `ok` | 真偽値 | 終了コードが 0 のとき `true` | 決定 |
 | `errors` | 配列 | 失敗・問題の一覧。要素は `code`（固定の文字列）と `message`（英語・秘密を含めない） | 決定 |
 | `exitCode` | 整数 | 終了コード（0・1・2・3・130）。`ok` だけでは、3（一部だけ完了）で `errors` が空になり区別できないため | 決定（U3） |
-| `warnings` | 配列 | `errors` と同じ形 | 提案 |
+| `warnings` | 配列 | `errors` と同じ形。無いときも空の配列 | 決定（2026-11-09） |
 
 ### 3.2 提案の細部
 
@@ -565,12 +565,17 @@ public sealed class CliOutput
     public void Ok(string message);          // stdout: [OK] ...
     public void Warn(string message);        // stderr: [WARN] ...
     public void Error(string message);       // stderr: [ERROR] ...
-    public void Info(string message);        // stdout: [INFO] ...（採用する場合）
+    public void Info(string message);        // stdout: [INFO] ...（色なし）
     public void Result(string line);         // stdout: 接頭辞なし
     public void Progress(string line);       // stderr: 接頭辞なし
 
     public static bool UseColor(bool isTerminal, Func<string, string?> getEnvironmentVariable);
     public static string ToAscii(string text);
+
+    // --json の枠を stdout へ 1 行で書く（文言は redact を通す）
+    public void WriteJson(string command, bool ok, int exitCode, IReadOnlyList<CliIssue> errors,
+        IReadOnlyList<CliIssue> warnings, Action<Utf8JsonWriter>? writeFields = null);
+    public void WriteVersionJson(string version);   // --version --json（command・ok・version）
 }
 
 public sealed record CliIssue(string Code, string Message, string? Path = null);
@@ -584,18 +589,20 @@ public static class JsonResult
         int exitCode,
         IReadOnlyList<CliIssue> errors,
         IReadOnlyList<CliIssue> warnings,
-        Action<Utf8JsonWriter>? writeFields = null);
+        Action<Utf8JsonWriter>? writeFields = null,
+        Func<string, string>? redact = null);   // message・path に適用
+
+    /// <summary>--version --json の枠（command・ok・version）。</summary>
+    public static string SerializeVersion(string version);
 }
 
 /// <summary>
 /// コマンドの実行に渡す文脈。ExtensionsMigrator の CommandContext と同じ考え方。
-/// 引数解析の Issue（#170）では、出力は TextWriter（stdout・stderr）で受ける。
-/// CliOutput が入ったら、Stdout・Stderr を CliOutput に置き換える。
+/// 出力は CliOutput で受ける（#171。#170 では TextWriter の Stdout・Stderr だった）。
 /// </summary>
 public sealed record CommandContext(
     ParsedOptions Options,
-    TextWriter Stdout,
-    TextWriter Stderr,
+    CliOutput Output,
     TextReader Input,
     Func<string, string?> GetEnvironmentVariable);
 
@@ -628,8 +635,8 @@ public static class CliApplication
 }
 ```
 
-- **引数解析の実装（#170）で、案から変えたところ**: ①`CliApplication.RunAsync` と `CommandContext` は、`CliOutput` ではなく `TextWriter`（stdout・stderr）を受ける
-  （`CliOutput` は #171。入ったら置き換える）。
+- **引数解析の実装（#170）で、案から変えたところ**: ①`CliApplication.RunAsync` と `CommandContext` は、#170 では `CliOutput` ではなく `TextWriter`（stdout・stderr）を受けた
+  （#171 で `CliOutput` に置き換えた。下の「出力の実装（#171）」）。
   ②`--json` の枠（`--version --json`・使い方の誤り）は #171 の担当。
   解析は `ParseResult.JsonRequested` で、`--json` が解釈できたかだけを返す。
   ③`OptionSpec.DefaultValue`・`CommandSpec.MaxPositionals`・`StandardOptions`・`ParsedOptions.EnsureAtMostOne`・`ExitCodes.Combine`・
@@ -637,6 +644,14 @@ public static class CliApplication
   ④`ToolSpec` は作った時点で定義を検査する（名前の形・重複・予約語・ASCII。5.1）。引数なしは、短い使い方を stderr に出して 2（5.3）。
   ⑤1 回目の Ctrl+C の `[WARN]` の 1 行は、4 章の決定のとおり（`CliOutput` が入ったら接頭辞と色は `CliOutput` に任せる）。
   ⑥取り消しの合図が出ていれば、ハンドラーの戻り値によらず 130（優先 130 > 1 > 3 > 0）。
+- **出力の実装（#171）で、案から変えたところ**: ①`CommandContext` は `Stdout`・`Stderr` をやめ、`CliOutput Output` を持つ（生の `TextWriter` へ直接書くと
+  行が混ざり、接頭辞・ASCII 化・秘密の伏せを通らないため）。②`CliApplication.RunAsync` に、`CliOutput` を受けるオーバーロードを足した。
+  `TextWriter` を受ける従来の形は、端末ではない（色なし）として `CliOutput` を作って委ねる。`RunWithConsoleAsync` は `CliOutput.ForConsole()` を使う。
+  ③`CliOutput.WriteJson`・`WriteVersionJson`、`JsonResult.SerializeVersion`、`JsonResult.Serialize` の `redact` 引数を足した。
+  ④色は、接頭辞の直後に `ESC[0m` で戻す（メッセージは既定の色。行の最後に付けるより、接頭辞だけに効かせる決まりに合う）。
+  ⑤`Result`・`Progress` も、`redact` と `ToAscii` を通す（タブも `?` になる）。
+  ⑥使い方の誤りの枠の `command` は、コマンドが特定できないとき空文字列。`code` は `Usage`。
+  ⑦internal の `AsciiText` は `CliOutput.ToAscii` に統合した。
 - 設計の土台は、ExtensionsMigrator の `CommandContext`・`ICommand`（`{P}.Cli/ICommand.cs:8-31`）と、DatabaseConverter の
   `ConverterApplication`（入出力・環境変数・DB を差し替えられる。`{P}.Core/CommandLine/ConverterApplication.cs:29-43`）。
   どちらも「入出力と環境変数を差し替えられる」ので、DB なし・実プロセスなしでテストできる
@@ -896,14 +911,14 @@ flowchart TD
 | 補完の 3 シェル（PowerShell・bash・zsh）での実際の挙動と CI での確かめ方 | 未確認。実装の Issue で決める（5.5） |
 | `VVPT_PLEASANTER_*` を読み書きしている、この調査の対象外のリポジトリ・手順書 | 未確認（6.3） |
 
-### 9.2 提案の段階で、レビューで確定するもの
+### 9.2 提案から決定になったもの（2026-11-09）
 
 | 項目 | 現在の案 |
 |---|---|
-| `[INFO]` | 設ける（補足。色なし、stdout）。進行表示の書式（接頭辞なし・stderr）とあわせて確定する |
-| `warnings` | 枠に入れる（`errors` と同じ形） |
-| ANSI の色の対応 | 標準の 16 色の前景 31〜33 |
-| ヘルプの `-?`・`/?` | 受ける |
+| `[INFO]` | **決定（2026-11-09）**: 設ける（補足。色なし、stdout）。進行表示は接頭辞なし・stderr |
+| `warnings` | **決定（2026-11-09）**: 枠に入れる（`errors` と同じ形。無くても空の配列） |
+| ANSI の色の対応 | **決定（2026-11-09）**: 標準の 16 色の前景のみ。`[OK]`=32、`[WARN]`=33、`[ERROR]`=31、`[INFO]`=色なし。接頭辞の部分だけ。装飾・背景・256 色は使わない |
+| ヘルプの `-?`・`/?` | **決定（2026-11-09）**: 受ける（#170 で実装済み） |
 
 ### 9.3 決定済みの一覧（ユーザー、2026-11-09）
 
