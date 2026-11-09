@@ -227,6 +227,8 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
 | 130 | Ctrl+C などの中断 | 決定 |
 
 - 想定外の例外は、すべて 1 にして `[ERROR]` を出す。例外の文言をそのまま出さず、秘密を含めない（決定）
+- **決定（2026-11-09、Core#175）**: Web アプリの `--migrate-status` は、未適用の移行があれば 1（`validate` で問題ありと同じ「検査の失敗」）、
+  すべて適用済みなら 0
 - 提案: 複数に当てはまるときの優先は、130（中断）> 1（失敗）> 3（残りあり）> 0。MailIngest は、エラーがあれば 1、
   無くて残りがあれば 3 にしており（`{P}.Core/Ingest/IngestRunner.cs:57`）、これを共通の規則にする
 - 提案: 2 は、**始める前に分かる誤り**（引数・設定ファイルの形・環境変数の欠落・読めないファイル）。
@@ -271,7 +273,7 @@ flowchart TD
 | MailIngest `validate` | 設定ファイルの中身の問題が 2（`{P}.Cli/Program.cs:127-130`） | **中身の問題は 1**。ファイルが無い・読めないは 2（U5）。検査の結果を終了コードで読んでいる運用に影響する |
 | IndexCreator | DB の失敗が 3（`src/IndexCreator/Program.cs:192`）、確認で `yes` と入力しないと 2（同 184） | DB の失敗は 1（3 は「一部だけ完了」）。**確認の拒否は 1**（U7）。`plan` は未適用の変更があっても 0 のまま（U6） |
 | 中断（BinaryMigrator・DatabaseConverter・ExtensionsMigrator・MailIngest） | 1 | 130 |
-| Core の `MigrationCommand` | DB の待機期限切れが 2（`MigrationCommand.cs:42`） | 実行時の失敗なので 1 |
+| Core の `MigrationCommand` | DB の待機期限切れが 2 | 実行時の失敗なので 1（Core#175 で対応） |
 | 想定外の例外（CalendarStyleCreator） | 捕まえない | 1 と `[ERROR]` |
 
 ## 5. 引数の解析（Core の自作の共通部品）
@@ -295,6 +297,10 @@ flowchart TD
 | 共通のオプション | `--help`・`--version`・`--json`、確認を省く **`--yes`（短縮形 `-y`）を全ツール共通**にする | 決定（U15、U7） |
 | 終端 | `--` 以降は、すべて位置引数 | 提案 |
 | 環境変数 | 定義に環境変数の名前を持てる。**引数 > 環境変数 > 既定値**の順（BinaryMigrator の `Value()` と同じ） | 提案 |
+
+- **決定（2026-11-09、Core#175）**: Core.Data の `MigrationCommand`（Web アプリの起動引数 `--migrate`・`--migrate-status`）は、
+  共通のオプション（`--help`・`--version`・`--json`・`--yes`）と中断（130）を**受けない**。`Core.Cli` を参照しないため、
+  文言（2 章）・終了コード（4 章）・`--wait-for-db` の 3 書式（`N`・`=N`・`:N`）だけを揃える
 
 ### 5.2 トークンの判定
 
@@ -767,7 +773,7 @@ public static class CliApplication
   引数なしで出す短い使い方も、接頭辞を付けない決まりなので要求しない
 - **既知の違反**（`KnownViolation`: 規則・場面・理由・Issue）は、直す Issue があるずれを、「検出されること」を固定して一覧にする。
   一覧にない違反は失敗。一覧にあるのに検出されなくなったものも失敗にし、一覧から外すよう促す。
-  `MigrationCommand` のずれは、Core#175 で直すまでこの一覧に入れる（`tests/VehicleVision.PleasanterTools.Core.Data.Tests/MigrationCommandContractTests.cs`）
+  `MigrationCommand` のずれは Core#175 で直したので、一覧は空（`tests/VehicleVision.PleasanterTools.Core.Data.Tests/MigrationCommandContractTests.cs`）
 - 契約が働くことは、わざと違反させた偽のツール（ASCII でない出力・stdout と stderr の取り違え・誤った終了コード・JSON 以外の混入・秘密など）を
   検出するテストで示す（`tests/VehicleVision.PleasanterTools.Core.Cli.Tests`）
 - 契約では確かめないもの: 進行表示が stderr か（どの行が進行かを、部品が知らない）、中断（130）の安全な止め方、`--yes` の確認の流れ（ツールごとのテスト）
@@ -868,7 +874,7 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | MailIngest | `check`・`validate`・`run`・`migrate`・`migrate-status`。配列パターンの一致。`--config 値`、`--json` | 0 / 1 / 2 / 3。中断は 1 | `run` だけ。枠なし | `PLEASANTER_*`、`MAILINGEST_DB_*` | `{P}.Cli/Program.cs:9,15-41` |
 | IndexCreator | 先頭が操作（`plan`・`_rds`・`views`・`_views`・`choice-lists`・`_choice-lists`）。`/名前 値`。パスは `/` 始まりの値も取る | 0 / 1 / 2 / 3（DB の失敗）/ 130 | なし | `INDEXCREATOR_*`（3 つ）と Pleasanter 本体の名前 | `src/IndexCreator/Options.cs:10-49`、`Program.cs:190-194` |
 | CalendarStyleCreator | `generate`・`register`。`/名前 値`。パスは `/` 始まりの値も取る | 0 / 2 / 130。**想定外の例外を捕まえていない** | なし | `CALENDARSTYLE_*`（4 つ）、`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/CalendarStyleCreator/Options.cs:37-75`、`Program.cs:58-67` |
-| Web アプリの `--migrate`（Core.Data） | `--migrate`・`--migrate-status`・`--wait-for-db=N`（`=` の形だけ） | 0 / 1（未適用あり）/ 2（DB の待機期限切れ） | なし | `<アプリ ID>_DB_*` | `MigrationCommand.cs:6-12,33-44,57-59,68-75` |
+| Web アプリの `--migrate`（Core.Data） | `--migrate`・`--migrate-status`・`--wait-for-db N`・`--wait-for-db=N`・`--wait-for-db:N`（Core#175 で `N` と `:N` を追加。変更前は `=` の形だけ） | 0 / 1（未適用あり、DB の待機期限切れ）。変更前は待機期限切れが 2 | なし | `<アプリ ID>_DB_*` | `MigrationCommand.cs:31-79,85-111` |
 
 #### 7.1.1 出力（stdout と stderr、接頭辞、言語）
 
@@ -881,12 +887,13 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | MailIngest | stdout にサマリー、stderr に `error [Code] path: message`・`warning […]`・`log level=… event=…`（`{P}.Cli/Program.cs:119-125`、`{P}.Cli/RunCommand.cs:213`） | stderr | stderr | `error [Code]`・`warning [Code]` | **あり**（`{P}.Cli/Program.cs:93,101`、`{P}.Core/PleasanterEnvironment.cs:31`） |
 | IndexCreator | すべて stdout（`RuntimeLog.WriteLine`。ファイルの NLog にも書く。`src/IndexCreator/RuntimeLog.cs:27-42`） | **stdout に `WARNING:`・`INFO:`**（`Program.cs:68,76`）。確認の質問も stdout（同 183） | stderr に `ERROR: …` | `ERROR:`・`WARNING:`・`INFO:` | なし |
 | CalendarStyleCreator | stdout（`src/CalendarStyleCreator/RuntimeLog.cs:6-7`） | 無し | stderr に `ERROR: …`、`Canceled.` | `ERROR:` | なし |
-| Web アプリの `--migrate` | stdout（`MigrationCommand.cs:35,49,52-55,64`） | 無し | 待機期限切れだけ stderr（同 40） | 接頭辞なし | メッセージはなし。ただし **Core.Data が投げる例外のメッセージが日本語**（下の注） |
+| Web アプリの `--migrate` | 結果は stdout（`MigrationCommand.cs:63,66-69,78`）。進行表示は stderr（同 48）。Core#175 で変更（変更前は進行表示も stdout） | 無し | 待機期限切れは stderr の `[ERROR]`（同 53-55）。変更前は接頭辞なし | 適用済み・適用完了は `[OK]`。Core#175 で追加 | メッセージはなし。Core.Data の例外メッセージの日本語は Core#175 で英語にした（下の注） |
 
-日本語のメッセージの注: Core.Data の `AppDatabase.ParseProvider`（`AppDatabase.cs:131-133`）と `ConnectionSecurity.EnsureSecure`
-（`ConnectionSecurity.cs:170-172`）は、**日本語の例外メッセージ**を投げる。FeedIngest・MailIngest の `migrate`・`run`・`unlock` は、
-その `ex.Message` をそのまま stderr へ出す（`{P}.Cli/CliApp.cs:81`、`{P}.Cli/Program.cs:63`、`{P}.Cli/RunCommand.cs:126`）。
-Kudu で化ける。**Core 側の直しが要る**（例外メッセージを英語にするか、コンソール向けに別の文言を返す）。
+日本語のメッセージの注: Core.Data の `AppDatabase.ParseProvider` と `ConnectionSecurity.EnsureSecure` は、**日本語の例外メッセージ**を投げていた。
+FeedIngest・MailIngest の `migrate`・`run`・`unlock` は、その `ex.Message` をそのまま stderr へ出す
+（`{P}.Cli/CliApp.cs:81`、`{P}.Cli/Program.cs:63`、`{P}.Cli/RunCommand.cs:126`）ので、Kudu で化けていた。
+**Core#175 で、例外メッセージ自体を英語・ASCII にした**（コンソール向けの別の文言は持たない。決定、2026-11-09）。
+Core.Data の例外メッセージ（未対応の RDBMS・ロックの待機時間など）と、`ConnectionSecurity.Inspect` の問題の文言も同様に直した。
 
 ### 7.2 3 重実装の比較（BinaryMigrator・DatabaseConverter・ExtensionsMigrator）
 
@@ -924,7 +931,7 @@ IdentityProvider は、Core の `MigrationCommand` と**ほぼ同じ内容の複
 | 終了コード | 中断が 130（FeedIngest・IndexCreator・CalendarStyleCreator）と 1（ほか 4 つ）。3 の意味が「残りあり」（MailIngest）と「DB の失敗」（IndexCreator）。`validate` の問題が 1（ExtensionsMigrator）と 2（MailIngest）。`plan` の衝突が 0 | 表のとおり（4 章） |
 | 想定外の例外 | MailIngest は 1＋文言を出さない。CalendarStyleCreator は**捕まえない**（未処理のときの終了コードは実行環境による。未確認） | すべて 1＋`[ERROR]`（4 章） |
 | `--json` | MailIngest の `run` だけ。枠なし・整形あり | すべての結果を出すコマンドで、枠つき（3 章） |
-| 日本語の出力 | FeedIngest・MailIngest に直書き。Core.Data の例外メッセージも日本語 | ASCII・英語（2.1） |
+| 日本語の出力 | FeedIngest・MailIngest に直書き（Core.Data の例外メッセージは Core#175 で英語にした） | ASCII・英語（2.1） |
 | 環境変数 | `BINARY_MIGRATOR_`・`DBCONV_`・`CALENDARSTYLE_`・`INDEXCREATOR_`・`FEEDINGEST_PLEASANTER_` など、接頭辞の作り方がばらばら | `ツール名_`・共通は `VVPT_PLEASANTER_`（6 章） |
 | 位置引数 | ExtensionsMigrator だけが余計な引数を黙って通す | エラーにする（5.1） |
 | 重複の指定 | BinaryMigrator だけが後勝ち | エラーにする（5.1） |
@@ -1039,7 +1046,7 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 | `API_KEY_FILE` を読む共通の部品 | ファイルと環境変数の優先順・空白と改行の扱い・読めないときのエラー（決定、N4。細部は実装の Issue） |
 | DotNetClient の旧名の検出の持ち方 | 解消。DotNetClient は `Core.Contracts` だけを参照し、対応表（`PleasanterEnvironmentNames.Legacy`）を共有する。検出の処理は DotNetClient 側に書く（Core#181。適用は DotNetClient の Issue） |
 | 旧名の対応表の実装 | `PleasanterEnvironmentNames.Legacy` の中身は、6.2 の表を元にする |
-| 契約テストの範囲 | **解消**（Core#174）。規則は 5.7 の表。`MigrationCommand` のずれは「既知の違反」として固定し、Core#175 で直したら外す。`MigrationCommand` の `--migrate-status`（未適用あり=1）は、暫定で「検査の失敗」の 1 として扱っている（4 章との照合は #175 で確認） |
+| 契約テストの範囲 | **解消**（Core#174）。規則は 5.7 の表。`MigrationCommand` のずれは「既知の違反」として固定し、Core#175 で直したら外す。`MigrationCommand` の `--migrate-status`（未適用あり=1）は「検査の失敗」の 1 として 4 章に決定を足した（Core#175） |
 
 ### 9.5 公開範囲の確認
 
