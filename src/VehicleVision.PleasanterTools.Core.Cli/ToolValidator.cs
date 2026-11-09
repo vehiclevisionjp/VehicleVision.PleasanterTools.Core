@@ -126,7 +126,7 @@ internal static class ToolValidator
         if (value[0] is not (>= 'a' and <= 'z')
             || !value.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-'))
         {
-            throw Invalid($"{what} '{AsciiText.Sanitize(value)}' must match [a-z][a-z0-9-]* (lowercase letters, digits and hyphens).");
+            throw Invalid($"{what} '{CliOutput.ToAscii(value)}' must match [a-z][a-z0-9-]* (lowercase letters, digits and hyphens).");
         }
     }
 
@@ -141,7 +141,7 @@ internal static class ToolValidator
     /// <summary>空白・制御文字を含まない ASCII の 1 語。</summary>
     private static void RequireToken(string? value, string what)
     {
-        if (string.IsNullOrEmpty(value) || !AsciiText.IsPrintable(value) || value.Contains(' ', StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(value) || !CliOutput.IsPrintableAscii(value) || value.Contains(' ', StringComparison.Ordinal))
         {
             throw Invalid($"{what} must be a non-empty ASCII word without spaces.");
         }
@@ -150,7 +150,7 @@ internal static class ToolValidator
     /// <summary>ASCII の印字可能文字だけの 1 行。</summary>
     private static void RequireLine(string? value, string what)
     {
-        if (string.IsNullOrEmpty(value) || !AsciiText.IsPrintable(value))
+        if (string.IsNullOrEmpty(value) || !CliOutput.IsPrintableAscii(value))
         {
             throw Invalid($"{what} must be a non-empty single line of printable ASCII.");
         }
