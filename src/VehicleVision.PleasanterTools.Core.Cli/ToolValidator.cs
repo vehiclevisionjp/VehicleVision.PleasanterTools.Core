@@ -49,6 +49,14 @@ internal static class ToolValidator
             {
                 throw Invalid($"MaxPositionals of command '{command.Name}' must be 1 or more.");
             }
+            if (command.PositionalValues is not null)
+            {
+                if (!command.AcceptsPositionals)
+                {
+                    throw Invalid($"PositionalValues of command '{command.Name}' apply only when the command accepts positional arguments.");
+                }
+                RequireCompletionValues(command.PositionalValues, $"Positional values of command '{command.Name}'");
+            }
             ArgumentNullException.ThrowIfNull(command.Options);
             ValidateOptionList(command.Options, $"command '{command.Name}'", common);
         }
@@ -109,10 +117,46 @@ internal static class ToolValidator
             {
                 RequireLine(option.DefaultValue, $"Default value of option '{option.Name}'");
             }
+            if (option.Values is not null)
+            {
+                RequireCompletionValues(option.Values, $"Values of option '{option.Name}'");
+                if (option.ValueCompletion != OptionValueCompletion.None)
+                {
+                    throw Invalid($"Option '{option.Name}' cannot have both Values and ValueCompletion.");
+                }
+            }
+            if (option.Kind == OptionKind.Flag
+                && (option.Values is not null || option.ValueCompletion != OptionValueCompletion.None))
+            {
+                throw Invalid($"Option '{option.Name}' is a flag; Values and ValueCompletion apply to value options only.");
+            }
             if (option.Kind == OptionKind.Flag
                 && (option.Required || option.ValueName is not null || option.DefaultValue is not null))
             {
                 throw Invalid($"Option '{option.Name}' is a flag; Required, ValueName and DefaultValue apply to value options only.");
+            }
+        }
+    }
+
+    /// <summary>補完の候補の値。シェルの引用を要さない ASCII の 1 語（英数字で始まり、英数字・<c>.</c>・<c>_</c>・<c>-</c>）で、重複しない。</summary>
+    private static void RequireCompletionValues(IReadOnlyList<string> values, string what)
+    {
+        if (values.Count == 0)
+        {
+            throw Invalid($"{what} must not be empty.");
+        }
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var value in values)
+        {
+            if (string.IsNullOrEmpty(value)
+                || value[0] is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9'))
+                || !value.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '.' or '_' or '-'))
+            {
+                throw Invalid($"{what} must be ASCII words of letters, digits, '.', '_' and '-' (starting with a letter or digit).");
+            }
+            if (!seen.Add(value))
+            {
+                throw Invalid($"{what} has a duplicate value '{value}'.");
             }
         }
     }

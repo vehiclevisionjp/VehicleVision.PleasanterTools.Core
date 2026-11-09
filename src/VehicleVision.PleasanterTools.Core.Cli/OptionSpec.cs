@@ -32,4 +32,16 @@ public sealed record OptionSpec
     /// 最後の候補にする。<see cref="OptionKind.Value"/> だけ。
     /// </summary>
     public string? DefaultValue { get; init; }
+
+    /// <summary>
+    /// 補完の候補にする値の一覧（<see cref="OptionKind.Value"/> だけ。<see cref="ValueCompletion"/> とは同時に指定できない）。
+    /// 各値は英数字で始まり、英数字・<c>.</c>・<c>_</c>・<c>-</c> だけの ASCII の 1 語。
+    /// 補完のためだけの情報で、解析は値を検査しない（検査は取得メソッドで行う）。
+    /// </summary>
+    public IReadOnlyList<string>? Values { get; init; }
+
+    /// <summary>
+    /// 値の補完の方式（<see cref="OptionKind.Value"/> だけ）。既定は <see cref="OptionValueCompletion.None"/>。
+    /// </summary>
+    public OptionValueCompletion ValueCompletion { get; init; } = OptionValueCompletion.None;
 }

@@ -6,9 +6,11 @@ namespace VehicleVision.PleasanterTools.Core.Cli;
 /// <param name="Options">このコマンドのオプション。共通のオプションとは名前が重ならないこと。</param>
 /// <param name="AcceptsPositionals">位置引数を受けるか（新しいコマンドでは使わない方針。仕様書 5.1）。</param>
 /// <param name="MaxPositionals">受ける位置引数の最大数。<paramref name="AcceptsPositionals"/> が偽のときは無視する。</param>
+/// <param name="PositionalValues">位置引数の補完の候補（<c>completion</c> コマンドのシェル名など）。省略時は、位置引数をファイル名として補完する。</param>
 public sealed record CommandSpec(
     string Name,
     string Summary,
     IReadOnlyList<OptionSpec> Options,
     bool AcceptsPositionals = false,
-    int MaxPositionals = int.MaxValue);
+    int MaxPositionals = int.MaxValue,
+    IReadOnlyList<string>? PositionalValues = null);

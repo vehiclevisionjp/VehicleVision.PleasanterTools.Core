@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 生成物の文字列を固定する期待値 -->
+    <None Include="Golden\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Cli\VehicleVision.PleasanterTools.Core.Cli.csproj" />
   </ItemGroup>
 

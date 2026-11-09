@@ -151,6 +151,22 @@ public sealed class CliOutput
     /// <summary>印字可能な ASCII（0x20〜0x7E）だけか。</summary>
     internal static bool IsPrintableAscii(string value) => value.All(c => c is >= ' ' and <= '~');
 
+    /// <summary>秘密を伏せて ASCII にする（<see cref="Result"/> が書く内容。書かずに確かめたいときに使う）。</summary>
+    internal string Sanitize(string text) => Clean(text);
+
+    /// <summary>
+    /// 改行を変えずに stdout へ書く（シェルのスクリプトは LF のままにする。CR が混ざると bash・zsh が読めない）。
+    /// 呼び出し側が ASCII であることを保証する。
+    /// </summary>
+    internal void WriteText(string text)
+    {
+        lock (_gate)
+        {
+            _stdout.Write(text);
+            _stdoutWritten = true;
+        }
+    }
+
     // 秘密を伏せてから ASCII の 1 行にする。先に ASCII 化すると、非 ASCII を含む秘密に一致しなくなる
     private string Clean(string text)
     {
