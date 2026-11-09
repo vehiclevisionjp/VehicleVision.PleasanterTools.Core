@@ -1,4 +1,5 @@
 using System.Globalization;
+using VehicleVision.PleasanterTools.Core.Contracts;
 
 namespace VehicleVision.PleasanterTools.Core.Cli.Tests;
 
@@ -9,10 +10,10 @@ public sealed class 実行の入口Tests
 
     private static Dictionary<string, CommandHandler> Handlers(CommandHandler? run = null) => new()
     {
-        ["run"] = run ?? ((_, _) => Task.FromResult(ExitCodes.Success)),
-        ["strict"] = (_, _) => Task.FromResult(ExitCodes.Success),
-        ["files"] = (_, _) => Task.FromResult(ExitCodes.Success),
-        ["plain"] = (_, _) => Task.FromResult(ExitCodes.Success),
+        ["run"] = run ?? ((_, _) => Task.FromResult(ExitCodeValues.Success)),
+        ["strict"] = (_, _) => Task.FromResult(ExitCodeValues.Success),
+        ["files"] = (_, _) => Task.FromResult(ExitCodeValues.Success),
+        ["plain"] = (_, _) => Task.FromResult(ExitCodeValues.Success),
     };
 
     private static async Task<Outcome> Execute(
@@ -47,7 +48,7 @@ public sealed class 実行の入口Tests
             seen = context;
             context.Output.Result("result line");
             context.Output.Progress("progress line");
-            return Task.FromResult(context.Input.ReadLine() == "yes" ? ExitCodes.Success : ExitCodes.Failure);
+            return Task.FromResult(context.Input.ReadLine() == "yes" ? ExitCodeValues.Success : ExitCodeValues.Failure);
         }, input: "yes\n");
         Assert.Equal(0, result.Code);
         Assert.Equal("result line\n", result.Stdout);
@@ -78,7 +79,7 @@ public sealed class 実行の入口Tests
     public async Task 引数なしは短い使い方を標準エラーへ出して2()
     {
         var result = await Execute([]);
-        Assert.Equal(ExitCodes.UsageError, result.Code);
+        Assert.Equal(ExitCodeValues.UsageError, result.Code);
         Assert.Empty(result.Stdout);
         Assert.Contains("Usage:", result.Stderr);
         Assert.Contains("Run 'sample-tool --help' for more information.", result.Stderr);
@@ -141,7 +142,7 @@ public sealed class 実行の入口Tests
         {
             await cancellation.CancelAsync();
             token.ThrowIfCancellationRequested();
-            return ExitCodes.Success;
+            return ExitCodeValues.Success;
         }, cancellation.Token);
         Assert.Equal(130, result.Code);
         Assert.Empty(result.Stderr);
@@ -198,13 +199,6 @@ public sealed class 実行の入口Tests
         Assert.Equal("strict", called);
     }
 
-    [Fact]
-    public void 終了コードの定数()
-    {
-        Assert.Equal([0, 1, 2, 3, 130],
-            [ExitCodes.Success, ExitCodes.Failure, ExitCodes.UsageError, ExitCodes.Partial, ExitCodes.Interrupted]);
-    }
-
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(0, 3, 3)]
@@ -258,7 +252,7 @@ public sealed class 実行の入口Tests
         {
             started.SetResult();
             await Task.Delay(Timeout.Infinite, token);
-            return ExitCodes.Success;
+            return ExitCodeValues.Success;
         }, cancellation.Token);
 
         await started.Task;

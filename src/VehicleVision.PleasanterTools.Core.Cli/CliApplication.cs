@@ -1,3 +1,5 @@
+using VehicleVision.PleasanterTools.Core.Contracts;
+
 namespace VehicleVision.PleasanterTools.Core.Cli;
 
 /// <summary>
@@ -77,7 +79,7 @@ public static class CliApplication
         if (args.Count == 0)
         {
             WriteLines(output.Progress, HelpText.ShortUsage(tool));
-            return ExitCodes.UsageError;
+            return ExitCodeValues.UsageError;
         }
 
         var parsed = CommandLineParser.Parse(tool, args, getEnvironmentVariable);
@@ -85,7 +87,7 @@ public static class CliApplication
         {
             case ParseOutcome.Help:
                 WriteLines(output.Result, parsed.Text!);
-                return ExitCodes.Success;
+                return ExitCodeValues.Success;
             case ParseOutcome.Version:
                 if (parsed.JsonRequested)
                 {
@@ -95,10 +97,10 @@ public static class CliApplication
                 {
                     WriteLines(output.Result, parsed.Text!);
                 }
-                return ExitCodes.Success;
+                return ExitCodeValues.Success;
             case ParseOutcome.Error:
                 WriteUsageError(output, tool, parsed.CommandName, parsed.Text!, parsed.JsonRequested);
-                return ExitCodes.UsageError;
+                return ExitCodeValues.UsageError;
         }
 
         var context = new CommandContext(parsed.Options, output, input, getEnvironmentVariable);
@@ -110,11 +112,11 @@ public static class CliApplication
         catch (UsageException ex)
         {
             WriteUsageError(output, tool, parsed.CommandName, ex.Message, parsed.JsonRequested);
-            return ExitCodes.UsageError;
+            return ExitCodeValues.UsageError;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return ExitCodes.Interrupted;
+            return ExitCodeValues.Interrupted;
         }
         catch (Exception)
         {
@@ -126,15 +128,15 @@ public static class CliApplication
                 output.WriteJson(
                     parsed.CommandName!,
                     false,
-                    ExitCodes.Failure,
-                    [new CliIssue("UnexpectedError", "An unexpected error occurred.")],
+                    ExitCodeValues.Failure,
+                    [new CliIssue(ErrorCodes.UnexpectedError, "An unexpected error occurred.")],
                     []);
             }
-            code = ExitCodes.Failure;
+            code = ExitCodeValues.Failure;
         }
 
         // 中断の合図が出ていれば、ハンドラーの戻り値より優先する（130 > 1 > 3 > 0）
-        return cancellationToken.IsCancellationRequested ? ExitCodes.Interrupted : code;
+        return cancellationToken.IsCancellationRequested ? ExitCodeValues.Interrupted : code;
     }
 
     /// <summary>
@@ -152,7 +154,7 @@ public static class CliApplication
         var coordinator = new InterruptCoordinator(
             cancellation,
             () => output.Warn("Interrupted. Stopping at a safe point. Press Ctrl+C again to exit immediately."),
-            () => Environment.Exit(ExitCodes.Interrupted));
+            () => Environment.Exit(ExitCodeValues.Interrupted));
         ConsoleCancelEventHandler onCancel = (_, e) =>
         {
             // 既定の強制終了を止め、1 回目は安全に止める
@@ -183,8 +185,8 @@ public static class CliApplication
             output.WriteJson(
                 commandName ?? tool.Name,
                 false,
-                ExitCodes.UsageError,
-                [new CliIssue("Usage", CliOutput.ToAscii(message))],
+                ExitCodeValues.UsageError,
+                [new CliIssue(ErrorCodes.Usage, CliOutput.ToAscii(message))],
                 []);
         }
     }

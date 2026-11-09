@@ -1,3 +1,5 @@
+using VehicleVision.PleasanterTools.Core.Contracts;
+
 namespace VehicleVision.PleasanterTools.Core.Cli;
 
 /// <summary>
@@ -30,7 +32,7 @@ public static class LegacyEnvironmentCheck
     }
 
     /// <summary>
-    /// 旧名が 1 つでもあれば、すべて <c>[ERROR]</c> で出して <see cref="ExitCodes.UsageError"/> を返す。無ければ <see cref="ExitCodes.Success"/>。
+    /// 旧名が 1 つでもあれば、すべて <c>[ERROR]</c> で出して <see cref="ExitCodeValues.UsageError"/> を返す。無ければ <see cref="ExitCodeValues.Success"/>。
     /// </summary>
     public static int Report(
         CliOutput output,
@@ -44,6 +46,6 @@ public static class LegacyEnvironmentCheck
             output.Error(message);
         }
 
-        return messages.Count == 0 ? ExitCodes.Success : ExitCodes.UsageError;
+        return messages.Count == 0 ? ExitCodeValues.Success : ExitCodeValues.UsageError;
     }
 }

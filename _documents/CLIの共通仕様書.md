@@ -67,8 +67,9 @@ VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共
 ### 1.3.1 Core の規約と、製品群で共通の値
 
 Core の規約は「**アプリ固有の値**（アプリ名・環境変数の接頭辞・ファイル名・ロック名など）を Core に書かない」で、
-呼び出し側が引数で渡す。**製品群で共通の値は、この規約の対象外**で、Core が公開 API の定数として持ってよい（決定、N6）。
-この文書では、共通の環境変数 `VVPT_PLEASANTER_*` とその旧名の対応が該当する（5.6、6 章）。
+呼び出し側が引数で渡す。**製品群で共通の値は、この規約の対象外**で、新しいパッケージ `Core.Contracts` に置く（決定、N6。置き場は Core#181）。
+`Core.Contracts` は、定数と読み取り専用の対応表だけを持ち、処理を持たない。
+この文書では、共通の環境変数 `VVPT_PLEASANTER_*` とその旧名の対応・`--json` の枠のキー名・共通のエラーコード名・終了コードの値が該当する（3 章、4 章、5.6、6 章）。
 ツール名・ツール固有の接頭辞（`MAILINGEST_` など）は、従来どおりアプリ固有の値で、Core に書かない。
 
 ### 1.4 公開範囲についての注意
@@ -241,7 +242,7 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
 - **決定（2026-11-09、#178 の確認）**: 1 回目の Ctrl+C で、stderr に次の 1 行を出す（ASCII。2 回目で即終了することも案内する）。
   `[WARN] Interrupted. Stopping at a safe point. Press Ctrl+C again to exit immediately.`
   接頭辞と色は `CliOutput`（2.3）の規則に従う。2 回目は何も出さずに終了する
-- 提案: 終了コードの定数は Core に置き、各ツールは数字を直書きしない（5.6）
+- 提案: 終了コードの値は `Core.Contracts` に置き（`ExitCodeValues`）、各ツールは数字を直書きしない。合成の規則（`ExitCodes.Combine`）は処理なので `Core.Cli` に置く（5.6）
 
 終了コードの決定フロー（提案）:
 
@@ -416,7 +417,7 @@ Exit codes:
 
 ### 5.6 公開 API の案
 
-**新しいパッケージ `VehicleVision.PleasanterTools.Core.Cli` に置く**案。BCL だけに依存し、ほかの Core のパッケージを参照しない
+**新しいパッケージ `VehicleVision.PleasanterTools.Core.Cli` に置く**案。BCL だけに依存し、`Core.Contracts` 以外の Core のパッケージを参照しない
 （`Core.Data` に置くと、DB を使わない BinaryMigrator・ExtensionsMigrator などが Dapper などを引き連れる）。
 Core の規則（アプリ名を書かない・値は引数で受ける）に従い、ツール名・環境変数の名前・説明はすべて定義として受け取る。
 
@@ -490,14 +491,9 @@ public static class CommandLineParser
 /// <summary>使い方の誤り。終了コード 2。メッセージは ASCII。</summary>
 public sealed class UsageException(string message) : Exception(message);
 
+// 終了コードの値は Core.Contracts の ExitCodeValues（Success = 0・Failure = 1・UsageError = 2・Partial = 3・Interrupted = 130）
 public static class ExitCodes
 {
-    public const int Success = 0;
-    public const int Failure = 1;
-    public const int UsageError = 2;
-    public const int Partial = 3;
-    public const int Interrupted = 130;
-
     /// <summary>優先（130 > 2 > 1 > 3 > 0）の高い方を返す。</summary>
     public static int Combine(int first, int second);
 }
@@ -522,9 +518,9 @@ public delegate Task<IReadOnlyList<string>> CompletionProvider(
     string optionName, string currentWord, CancellationToken cancellationToken);
 
 /// <summary>
-/// 製品群で共通の環境変数の名前と旧名の対応（決定: N6）。アプリ固有の値ではないので Core が持つ。
+/// 製品群で共通の環境変数の名前と旧名の対応（決定: N6）。アプリ固有の値ではないので Core.Contracts が持つ。
 /// </summary>
-public static class PleasanterEnvironmentNames
+public static class PleasanterEnvironmentNames  // Core.Contracts
 {
     public const string BaseUrl = "VVPT_PLEASANTER_BASE_URL";
     public const string ApiKey = "VVPT_PLEASANTER_API_KEY";
@@ -668,6 +664,10 @@ public static class CliApplication
 - **決定（N5）**: `--yes`/`-y` は、確認の質問を持つコマンドだけが宣言する。宣言していないコマンドで指定したら、
   `Unknown option` と同じ使い方の誤り（終了コード 2）にする
 - **決定（N6）**: `VVPT_PLEASANTER_*` の名前と旧名の対応は、Core が公開 API の定数として持つ（`PleasanterEnvironmentNames`）。
+  置き場は `Core.Contracts`（Core#181。BCL だけに依存し、何も参照しない。定数と読み取り専用の対応表だけで、処理を持たない）。
+  `--json` の枠のキー名（`JsonKeys`）・共通のエラーコード名（`ErrorCodes`）・終了コードの値（`ExitCodeValues`）も同じパッケージに置く。
+  旧名の検出（`LegacyEnvironmentCheck`）・`EnvironmentNames`・`PleasanterApiKey`・`ExitCodes.Combine` は処理なので `Core.Cli` に残る。
+  `Core.Cli` は `Core.Contracts` を参照する。**DotNetClient は `Core.Contracts` だけを参照し、`Core.Cli` は参照しない**
   Core の規約（アプリ固有の値を書かない）の対象は、アプリ固有の値で、**製品群で共通の値は対象外**（1.3.1）
 - **決定（N4）**: `API_KEY_FILE` は DotNetClient には足さず、**ツール側が共通の部品で読む**（ファイル → 環境変数の順などの細部は、
   実装の Issue で詰める。秘密の読み方は 5.6 の「後続の候補」にある接続文字列の部品と同じ種類）
@@ -722,7 +722,7 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | 接頭辞の導き方 | ツール ID（小文字・ハイフン区切り）を大文字にし、`-` を `_` にして `_` を付ける。Core.Data の `AppDatabase` と同じ規則 | 提案 |
 | 型 | 真偽は `true`（大文字小文字を問わない）だけを真とする（現状の `*_ALLOW_INSECURE*` と同じ） | 提案 |
 | 秘密の置き場 | 接続文字列・API キーは、コマンドラインの引数に直書きさせない。環境変数・ファイル・標準入力から受ける | 提案（現状の BinaryMigrator・DatabaseConverter が守っている） |
-| ツール側の名前 | アプリ固有の値（ツール名・`ツール名_` の接頭辞）は、呼び出し側が引数で渡す（Core に書かない）。**製品群で共通の値**（`VVPT_PLEASANTER_*` の名前と旧名の対応）は、Core の規約の対象外で、Core が公開 API の定数として持つ（5.6） | 決定（Core の規約、N6） |
+| ツール側の名前 | アプリ固有の値（ツール名・`ツール名_` の接頭辞）は、呼び出し側が引数で渡す（Core に書かない）。**製品群で共通の値**（`VVPT_PLEASANTER_*` の名前と旧名の対応）は、Core の規約の対象外で、`Core.Contracts` が定数として持つ（5.6） | 決定（Core の規約、N6） |
 | Pleasanter 本体の変数名 | IndexCreator が読む `<EnvironmentName>_OwnerConnectionString`・`<サービス名>_Rds_<DBMS>_*` などは、本体が決めるので**改名しない** | 決定 |
 
 ### 6.2 現状の一覧と、新しい名前
@@ -756,7 +756,7 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 
 ライブラリである DotNetClient には終了コードが無い。**決定（N4）**: `PleasanterOptions.FromEnvironment()` は、旧名が設定されていれば
 （新名との併用を含む。N2）検出して例外を投げる。メッセージは CLI の `[ERROR]` と同じ内容（`Environment variable X is no longer supported. Use Y.`）。
-検出の定義は、Core の `PleasanterEnvironmentNames` と同じ対応を使う（DotNetClient が Core を参照できない場合の持ち方は、実装の Issue で詰める）。
+検出の定義は、`Core.Contracts` の `PleasanterEnvironmentNames.Legacy` の対応を使う（DotNetClient は `Core.Contracts` だけを参照し、`Core.Cli` は参照しない。対応表を重複して持たない）。
 
 ### 6.4 対応表の作り方（適用の Issue に書くこと）
 
@@ -881,7 +881,7 @@ flowchart TD
 
 | 順 | 対象 | 理由 | 適用 Issue に書く主な影響 |
 |---|---|---|---|
-| 1 | Core.Cli・Core.Cli.Testing の実装 | 部品が無いと始まらない。新パッケージは、nuget.org のポリシー・`release.yml`・リリース手順書の更新が要る。補完（3 シェル。ファイル名・動的な値を含む）の保守・テストの手間が最大。`VVPT_PLEASANTER_*` の定数と旧名の検出もここで持つ（N6） | 公開 API の追加。各ツールの追随は Issue に残す |
+| 1 | Core.Cli・Core.Cli.Testing の実装 | 部品が無いと始まらない。新パッケージは、nuget.org のポリシー・`release.yml`・リリース手順書の更新が要る。補完（3 シェル。ファイル名・動的な値を含む）の保守・テストの手間が最大。`VVPT_PLEASANTER_*` の定数は `Core.Contracts`、旧名の検出は `Core.Cli` が持つ（N6） | 公開 API の追加。各ツールの追随は Issue に残す |
 | 1b | Core.Data の `MigrationCommand`・例外メッセージ | FeedIngest・MailIngest・Web アプリが共通で使う。Core 側の直しなので先に。`Core.Cli` は参照せず、`TextWriter` を受けて文言・終了コードだけを揃える（U12） | DB の待機期限切れ 2→1。`--wait-for-db N` の形。例外メッセージの英語化（公開 API の挙動の変更） |
 | 1c | DotNetClient の次の版（0.5.0 以降） | 共通の `VVPT_PLEASANTER_*` の元。ほかのツールが先に改名できない | **公開済み 0.4.0 を含む破壊的変更**。旧名は受け付けず、検出して例外を投げる（N4）。`API_KEY_FILE` は足さない。リリースノートで告知 |
 | 2 | ExtensionsMigrator | 最も新しく、CLI のみ（GUI は作らない）。コマンドが複数あり、`CommandContext`・`ICommand` が土台になるので、部品の形を試せる | `plan` の衝突 0→1。余計な引数がエラーに。中断 130。`--json`。環境変数 `VVPT_PLEASANTER_*`（`API_KEY_FILE` を追加） |
@@ -961,7 +961,7 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 | 補完の動的な値の範囲・方式 | どの値を動的に補完するか（DB への問い合わせの候補など）、候補を返す仕組み、時間制限、失敗時の扱い、秘密を出さないこと。設計で詰める（決定、N1） |
 | 補完のテスト | 生成物の固定のほか、3 シェルの実機での確認を CI で持つか。動的な値は接続先を用意した試験が要る |
 | `API_KEY_FILE` を読む共通の部品 | ファイルと環境変数の優先順・空白と改行の扱い・読めないときのエラー（決定、N4。細部は実装の Issue） |
-| DotNetClient の旧名の検出の持ち方 | DotNetClient が Core を参照しない場合に、対応表を重複して持つか（実装の Issue） |
+| DotNetClient の旧名の検出の持ち方 | 解消。DotNetClient は `Core.Contracts` だけを参照し、対応表（`PleasanterEnvironmentNames.Legacy`）を共有する。検出の処理は DotNetClient 側に書く（Core#181。適用は DotNetClient の Issue） |
 | 旧名の対応表の実装 | `PleasanterEnvironmentNames.Legacy` の中身は、6.2 の表を元にする |
 
 ### 9.5 公開範囲の確認

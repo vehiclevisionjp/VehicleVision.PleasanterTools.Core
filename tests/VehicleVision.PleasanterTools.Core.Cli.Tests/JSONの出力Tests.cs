@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using VehicleVision.PleasanterTools.Core.Contracts;
 
 namespace VehicleVision.PleasanterTools.Core.Cli.Tests;
 
@@ -12,10 +13,10 @@ public sealed class JSONの出力Tests
     {
         var handlers = new Dictionary<string, CommandHandler>
         {
-            ["run"] = run ?? ((_, _) => Task.FromResult(ExitCodes.Success)),
-            ["strict"] = (_, _) => Task.FromResult(ExitCodes.Success),
-            ["files"] = (_, _) => Task.FromResult(ExitCodes.Success),
-            ["plain"] = (_, _) => Task.FromResult(ExitCodes.Success),
+            ["run"] = run ?? ((_, _) => Task.FromResult(ExitCodeValues.Success)),
+            ["strict"] = (_, _) => Task.FromResult(ExitCodeValues.Success),
+            ["files"] = (_, _) => Task.FromResult(ExitCodeValues.Success),
+            ["plain"] = (_, _) => Task.FromResult(ExitCodeValues.Success),
         };
         using var stdout = new StringWriter(CultureInfo.InvariantCulture) { NewLine = "\n" };
         using var stderr = new StringWriter(CultureInfo.InvariantCulture) { NewLine = "\n" };
@@ -127,7 +128,7 @@ public sealed class JSONの出力Tests
         {
             context.Output.Ok("finished");
             context.Output.Warn("careful");
-            return Task.FromResult(ExitCodes.Success);
+            return Task.FromResult(ExitCodeValues.Success);
         });
         Assert.Equal("[OK] finished\n", result.Stdout);
         Assert.Equal("[WARN] careful\n", result.Stderr);

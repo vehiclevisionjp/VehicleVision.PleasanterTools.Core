@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\VehicleVision.PleasanterTools.Core.Contracts\VehicleVision.PleasanterTools.Core.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="VehicleVision.PleasanterTools.Core.Cli.Tests" />
   </ItemGroup>
 
