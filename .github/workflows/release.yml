@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "dry-run で梱包する版（例: 0.2.0 / 0.2.0-preview.1）。Directory.Build.props の VersionPrefix と合うこと。空なら VersionPrefix"
+        description: "dry-run で梱包する版（例: 0.2.0 / 0.2.0-preview.1）。空なら VersionPrefix。合わないときは警告（公開のときは合うこと）"
         required: false
         type: string
 
@@ -135,7 +135,8 @@ jobs:
           fi
           case "$version" in
             "$prefix"|"$prefix"-*) ;;
-            *) echo "::error::版($version)が VersionPrefix($prefix) と合わない（タグの検査と同じ規則）"; exit 1 ;;
+            # 版を上げる PR の前にも回せるよう、dry-run では警告にとどめる（実際の公開は、タグの検査で失敗する）
+            *) echo "::warning title=VersionPrefix と合いません::版($version)が VersionPrefix($prefix) と合わない。実際の公開は、VersionPrefix を上げてから" ;;
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "dry-run の版: $version"
