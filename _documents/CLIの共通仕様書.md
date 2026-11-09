@@ -174,7 +174,8 @@ Windows のコンソールが ANSI を解釈するか（仮想端末の処理の
 | 形 | 1 行（改行は最後の 1 つだけ）。列挙は名前の文字列、日時は UTC の ISO 8601（`Z` 付き） |
 | `ok` と終了コード | `ok` は終了コード 0 のときだけ `true`。3（一部だけ完了）でも `false` で、`errors` は空のことがある。区別は `exitCode` で行う。`schemaVersion` は足さない（必要になってから。決定、U3） |
 | `--json` の失敗 | 実行時の失敗（終了コード 1）は、枠の `errors` に入れて stdout へ出し、同じ内容を stderr に `[ERROR]` でも出す |
-| `--json` の使い方の誤り（決定、U4） | `--json` が解釈できたときだけ、使い方の誤り（終了コード 2）も枠（`ok: false`、`errors`、`exitCode: 2`）で stdout へ出す。文章のエラーは stderr にも出す。`--json` 自体が解釈できないときは文章だけ。`code` は `Usage`（案） |
+| `--json` の想定外の例外 | 想定外の例外（終了コード 1）のときも、`--json` なら枠（`ok: false`、`code` は `UnexpectedError`、文言は固定で例外の文言は出さない）を stdout へ出す。**stdout へ出力済みなら出さない**（JSON が 2 つになるため。`CliOutput.HasWrittenToStdout` で判定）。`--json` がなければ出さない（決定、2026-11-09） |
+| `--json` の使い方の誤り（決定、U4） | `--json` が解釈できたときだけ、使い方の誤り（終了コード 2）も枠（`ok: false`、`errors`、`exitCode: 2`）で stdout へ出す。文章のエラーは stderr にも出す。`--json` 自体が解釈できないときは文章だけ。`code` は `Usage`（案）。コマンドが特定できないとき（コマンド名より前の誤り）は、`command` にツール名を入れる（決定、2026-11-09） |
 | `--version` | `--json` のときは `command`・`ok`・`version` の枠（決定、U15）。例は 3.3 |
 | ファイル出力との違い | `--out` などのファイルへ書く JSON（棚卸し・plan の本体）は、この枠の対象外。stdout の `--json` は、結果の要約を出す |
 
@@ -650,7 +651,7 @@ public static class CliApplication
   ③`CliOutput.WriteJson`・`WriteVersionJson`、`JsonResult.SerializeVersion`、`JsonResult.Serialize` の `redact` 引数を足した。
   ④色は、接頭辞の直後に `ESC[0m` で戻す（メッセージは既定の色。行の最後に付けるより、接頭辞だけに効かせる決まりに合う）。
   ⑤`Result`・`Progress` も、`redact` と `ToAscii` を通す（タブも `?` になる）。
-  ⑥使い方の誤りの枠の `command` は、コマンドが特定できないとき空文字列。`code` は `Usage`。
+  ⑥使い方の誤りの枠の `command` は、コマンドが特定できないときツール名。`code` は `Usage`。想定外の例外の枠は `UnexpectedError`（出力済みなら出さない。`CliOutput.HasWrittenToStdout`）。
   ⑦internal の `AsciiText` は `CliOutput.ToAscii` に統合した。
 - 設計の土台は、ExtensionsMigrator の `CommandContext`・`ICommand`（`{P}.Cli/ICommand.cs:8-31`）と、DatabaseConverter の
   `ConverterApplication`（入出力・環境変数・DB を差し替えられる。`{P}.Core/CommandLine/ConverterApplication.cs:29-43`）。

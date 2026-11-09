@@ -120,6 +120,16 @@ public static class CliApplication
         {
             // 例外の文言は秘密を含み得るので出さない（仕様書 4 章）
             output.Error("An unexpected error occurred.");
+            if (parsed.JsonRequested && !output.HasWrittenToStdout)
+            {
+                // 出力済みなら、枠を足すと JSON が 2 つになるので出さない
+                output.WriteJson(
+                    parsed.CommandName!,
+                    false,
+                    ExitCodes.Failure,
+                    [new CliIssue("UnexpectedError", "An unexpected error occurred.")],
+                    []);
+            }
             code = ExitCodes.Failure;
         }
 
@@ -169,9 +179,9 @@ public static class CliApplication
         output.Progress($"Run '{tool.Name} --help' for usage.");
         if (json)
         {
-            // コマンドが特定できないときは空文字列（コマンド名より前の誤り）。code は Usage（案）
+            // コマンドが特定できないとき（コマンド名より前の誤り）は、ツール名を command に入れる。code は Usage（案）
             output.WriteJson(
-                commandName ?? string.Empty,
+                commandName ?? tool.Name,
                 false,
                 ExitCodes.UsageError,
                 [new CliIssue("Usage", CliOutput.ToAscii(message))],

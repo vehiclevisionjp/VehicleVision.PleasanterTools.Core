@@ -29,6 +29,23 @@ public sealed class CliOutput
     // stdout と stderr で共有する。行が混ざらず、書いた順も保たれる
     private readonly object _gate = new();
 
+    private bool _stdoutWritten;
+
+    /// <summary>
+    /// stdout へ 1 行でも書いたか。<c>--json</c> のとき、想定外の例外で枠を出すか
+    /// （出力済みなら二重にしない。仕様書 3.2）の判定に使う。
+    /// </summary>
+    public bool HasWrittenToStdout
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _stdoutWritten;
+            }
+        }
+    }
+
     /// <summary>出力を作る。</summary>
     /// <param name="stdout">結果の出力先。</param>
     /// <param name="stderr">診断の出力先。</param>
@@ -156,6 +173,10 @@ public sealed class CliOutput
         lock (_gate)
         {
             writer.WriteLine(line);
+            if (ReferenceEquals(writer, _stdout))
+            {
+                _stdoutWritten = true;
+            }
         }
     }
 }

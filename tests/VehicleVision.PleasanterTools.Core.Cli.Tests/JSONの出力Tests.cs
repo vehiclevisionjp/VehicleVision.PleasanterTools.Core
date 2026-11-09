@@ -54,12 +54,12 @@ public sealed class JSONの出力Tests
     }
 
     [Fact]
-    public async Task コマンドが特定できない誤りは_commandが空文字列()
+    public async Task コマンドが特定できない誤りは_commandがツール名()
     {
         var result = await Execute(["nope", "--json"]);
         Assert.Equal(2, result.Code);
         using var document = JsonDocument.Parse(result.Stdout);
-        Assert.Equal(string.Empty, document.RootElement.GetProperty("command").GetString());
+        Assert.Equal("sample-tool", document.RootElement.GetProperty("command").GetString());
         Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
         Assert.Equal(2, document.RootElement.GetProperty("exitCode").GetInt32());
         Assert.Equal("Usage", document.RootElement.GetProperty("errors")[0].GetProperty("code").GetString());
@@ -131,5 +131,63 @@ public sealed class JSONの出力Tests
         });
         Assert.Equal("[OK] finished\n", result.Stdout);
         Assert.Equal("[WARN] careful\n", result.Stderr);
+    }
+
+    [Fact]
+    public async Task jsonで想定外の例外が出力前なら枠をstdoutへ出して1()
+    {
+        var result = await Execute(["run", "--json"], (_, _) => throw new InvalidOperationException("Password=hunter2"));
+        Assert.Equal(1, result.Code);
+        Assert.Equal(
+            "{\"command\":\"run\",\"ok\":false,\"exitCode\":1,\"errors\":[{\"code\":\"UnexpectedError\",\"message\":\"An unexpected error occurred.\"}],\"warnings\":[]}\n",
+            result.Stdout);
+        Assert.Equal("[ERROR] An unexpected error occurred.\n", result.Stderr);
+        Assert.DoesNotContain("hunter2", result.Stdout + result.Stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task jsonで想定外の例外が出力済みなら枠を足さない()
+    {
+        var result = await Execute(["run", "--json"], (context, _) =>
+        {
+            context.Output.WriteJson("run", true, 0, [], []);
+            throw new InvalidOperationException("x");
+        });
+        Assert.Equal(1, result.Code);
+        Assert.Single(result.Stdout.TrimEnd('\n').Split('\n'));
+        Assert.Contains("\"ok\":true", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task 結果の行を出した後の想定外の例外も枠を足さない()
+    {
+        var result = await Execute(["run", "--json"], (context, _) =>
+        {
+            context.Output.Result("row");
+            throw new InvalidOperationException("x");
+        });
+        Assert.Equal("row\n", result.Stdout);
+    }
+
+    [Fact]
+    public async Task jsonがなければ想定外の例外で枠を出さない()
+    {
+        var result = await Execute(["run"], (_, _) => throw new InvalidOperationException("x"));
+        Assert.Empty(result.Stdout);
+    }
+
+    [Fact]
+    public void 出力済みの記録はstdoutだけが対象()
+    {
+        using var stdout = new StringWriter(CultureInfo.InvariantCulture);
+        using var stderr = new StringWriter(CultureInfo.InvariantCulture);
+        var output = new CliOutput(stdout, stderr, TestTool.Env(), false, false);
+        Assert.False(output.HasWrittenToStdout);
+        output.Error("e");
+        output.Warn("w");
+        output.Progress("p");
+        Assert.False(output.HasWrittenToStdout);
+        output.Info("i");
+        Assert.True(output.HasWrittenToStdout);
     }
 }
