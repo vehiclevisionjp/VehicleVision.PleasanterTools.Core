@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/VehicleVision.PleasanterTools.Core.Cli/VehicleVision.PleasanterTools.Core.Cli.csproj" />
+    <Project Path="src/VehicleVision.PleasanterTools.Core.Contracts/VehicleVision.PleasanterTools.Core.Contracts.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Data/VehicleVision.PleasanterTools.Core.Data.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Mail/VehicleVision.PleasanterTools.Core.Mail.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Web/VehicleVision.PleasanterTools.Core.Web.csproj" />
