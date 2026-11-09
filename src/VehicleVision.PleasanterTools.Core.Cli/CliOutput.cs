@@ -11,7 +11,7 @@ namespace VehicleVision.PleasanterTools.Core.Cli;
 /// 接頭辞付きの行（<see cref="Ok"/>・<see cref="Warn"/>・<see cref="Error"/>・<see cref="Info"/>）と、
 /// 接頭辞なしの行（<see cref="Result"/>・<see cref="Progress"/>）は、すべて <c>redact</c> → <see cref="ToAscii"/> の順で
 /// 1 行にしてから書く。秘密を伏せる部品そのものは持たず、呼び出し側が <c>redact</c> で渡す（仕様書 5.6）。
-/// 色は、出力先が端末で <c>NO_COLOR</c> が未設定または空のときだけ（2.4）。判定は出力先ごと。
+/// 色は、出力先が端末で、<c>NO_COLOR</c> が未設定または空で、<c>TERM</c> が <c>dumb</c> でないときだけ（2.4）。判定は出力先ごと。
 /// </remarks>
 public sealed class CliOutput
 {
@@ -71,16 +71,40 @@ public sealed class CliOutput
         _redact = redact;
     }
 
-    /// <summary>コンソール（<see cref="Console.Out"/>・<see cref="Console.Error"/>）へ出す。端末かどうかは、リダイレクトされていないかで判定する。</summary>
+    /// <summary>
+    /// コンソール（<see cref="Console.Out"/>・<see cref="Console.Error"/>）へ出す。端末かどうかは、リダイレクトされていないかで判定する。
+    /// Windows では、端末の出力先の仮想端末の処理を有効にし、有効にできなければ、その出力先は色なしにする（仕様書 2.4）。
+    /// </summary>
     /// <param name="getEnvironmentVariable">環境変数の取得。省略時は環境から読む。</param>
     /// <param name="redact">秘密を伏せる関数。</param>
     public static CliOutput ForConsole(Func<string, string?>? getEnvironmentVariable = null, Func<string, string>? redact = null) =>
-        new(
+        ForConsole(
             Console.Out,
             Console.Error,
             getEnvironmentVariable ?? Environment.GetEnvironmentVariable,
             !Console.IsOutputRedirected,
             !Console.IsErrorRedirected,
+            ConsoleVirtualTerminal.TryEnable,
+            redact);
+
+    /// <summary>
+    /// <see cref="ForConsole(Func{string, string?}?, Func{string, string}?)"/> の、実機に依存する部分（端末か・仮想端末の処理を有効にできるか）を
+    /// 差し替えられる形。端末の出力先についてだけ <paramref name="enableVirtualTerminal"/>（引数は stderr か）を呼び、偽なら色なしにする。
+    /// </summary>
+    internal static CliOutput ForConsole(
+        TextWriter stdout,
+        TextWriter stderr,
+        Func<string, string?> getEnvironmentVariable,
+        bool stdoutIsTerminal,
+        bool stderrIsTerminal,
+        Func<bool, bool> enableVirtualTerminal,
+        Func<string, string>? redact = null) =>
+        new(
+            stdout,
+            stderr,
+            getEnvironmentVariable,
+            stdoutIsTerminal && enableVirtualTerminal(false),
+            stderrIsTerminal && enableVirtualTerminal(true),
             redact);
 
     /// <summary>成功。stdout へ <c>[OK] message</c>（緑）。</summary>
@@ -118,14 +142,16 @@ public sealed class CliOutput
     public void WriteVersionJson(string version) => WriteLine(_stdout, JsonResult.SerializeVersion(version));
 
     /// <summary>
-    /// 色を付けるか（仕様書 2.4）。出力先が端末で、<c>NO_COLOR</c> が未設定または空のときだけ真。
+    /// 色を付けるか（仕様書 2.4）。出力先が端末で、<c>NO_COLOR</c> が未設定または空で、<c>TERM</c> が <c>dumb</c> でないときだけ真。
     /// </summary>
     /// <param name="isTerminal">出力先が端末につながっているか。</param>
     /// <param name="getEnvironmentVariable">環境変数の取得。</param>
     public static bool UseColor(bool isTerminal, Func<string, string?> getEnvironmentVariable)
     {
         ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
-        return isTerminal && string.IsNullOrEmpty(getEnvironmentVariable("NO_COLOR"));
+        return isTerminal
+            && string.IsNullOrEmpty(getEnvironmentVariable("NO_COLOR"))
+            && !string.Equals(getEnvironmentVariable("TERM"), "dumb", StringComparison.Ordinal);
     }
 
     /// <summary>
