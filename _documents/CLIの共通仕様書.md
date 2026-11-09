@@ -283,10 +283,10 @@ flowchart TD
 | 短縮形 | 1 文字の短縮形（`-h`・`-y` など）は、定義したものだけ。`-abc` のような結合は初版では受け付けない（`-abc` が既知の長い名前のときを除く） | 決定 |
 | 大文字小文字 | **オプション名・コマンド名は区別しない。値は区別する。** 大文字小文字だけが違う 2 つの名前の定義は、定義の時点で例外にする | 決定（U2） |
 | ヘルプ | `--help`・`-h`・`-?`・`/?` | 決定 |
-| 名前の形 | 小文字の英数字とハイフン（`[a-z][a-z0-9-]*`）。1 文字の短縮形は英小文字 1 文字 | 提案 |
+| 名前の形 | 小文字の英数字とハイフン（`[a-z][a-z0-9-]*`）。**オプションの長い名前は 2 文字以上**（1 文字の `-x` は短縮形と区別できないため）。1 文字の短縮形は英小文字 1 文字（`h` は予約）。`help`・`version` はコマンド名・オプション名に使えない。説明などヘルプに出す文字列は ASCII の 1 行。違反は定義の時点で例外 | 提案（実装で詰めた。#170） |
 | 重複 | 同じオプションを 2 回指定したらエラー | 提案（DatabaseConverter・ExtensionsMigrator が既にそう） |
 | 必須 | 定義に `Required` を持ち、欠けたらエラー | 提案 |
-| 位置引数 | 最初の位置引数はコマンド名（任意）。コマンドが位置引数を受けないとき、余った引数はエラー。**位置引数を使うコマンドは新しく作らない方針**。位置引数を受けるコマンドでも、`--` で始まる未知の名前だけエラーにし、`/名前`・`-名前` の未知は位置引数として通す | 決定（U13） |
+| 位置引数 | **コマンド名は必須で、先頭に置く**（前に置けるのは共通のオプションだけ。実装で詰めた。#170）。コマンドが位置引数を受けないとき、余った引数はエラー。**位置引数を使うコマンドは新しく作らない方針**。位置引数を受けるコマンドでも、`--` で始まる未知の名前だけエラーにし、`/名前`・`-名前` の未知は位置引数として通す。受ける数は `CommandSpec.MaxPositionals` で制限する（超えたら `Too many arguments.`） | 決定（U13）。上限は実装で詰めた（#170） |
 | 共通のオプション | `--help`・`--version`・`--json`、確認を省く **`--yes`（短縮形 `-y`）を全ツール共通**にする | 決定（U15、U7） |
 | 終端 | `--` 以降は、すべて位置引数 | 提案 |
 | 環境変数 | 定義に環境変数の名前を持てる。**引数 > 環境変数 > 既定値**の順（BinaryMigrator の `Value()` と同じ） | 提案 |
@@ -383,7 +383,8 @@ Exit codes:
 | 数の範囲 | `Option --parallel must be an integer from 1 to 16.` |
 | 未知のコマンド | `Unknown command: foo` |
 | コマンドが無い | `No command was given.` |
-| 排他の指定 | `Use only one of --a and --b.` |
+| 排他の指定 | `Use only one of --a and --b.`（`ParsedOptions.EnsureAtMostOne`） |
+| 位置引数が多すぎる | `Too many arguments. At most N positional argument(s) allowed.` |
 
 - 入力を示すときは、名前だけを示し（2.1）、ASCII 以外は `?` にする
 - 数・範囲・一覧（`--tables a,b`）の検査は、部品の取得メソッドが行う（3 つの既存実装が同じ検査を書いている）
@@ -428,9 +429,10 @@ public sealed record OptionSpec
     public required string Description { get; init; }       // ASCII の英語 1 行
     public OptionKind Kind { get; init; } = OptionKind.Flag;
     public string? ShortName { get; init; }                 // "y"。定義したものだけ
-    public string? ValueName { get; init; }                 // ヘルプの "<N>"
+    public string? ValueName { get; init; }                 // ヘルプの "<N>" の N（山括弧は部品が付ける）
     public bool Required { get; init; }
     public string? EnvironmentVariable { get; init; }       // 呼び出し側が決めた名前
+    public string? DefaultValue { get; init; }              // ヘルプの "(default: x)"。Value()・List() の最後の候補
 }
 
 /// <summary>コマンドの定義。</summary>
@@ -438,7 +440,8 @@ public sealed record CommandSpec(
     string Name,
     string Summary,
     IReadOnlyList<OptionSpec> Options,
-    bool AcceptsPositionals = false);
+    bool AcceptsPositionals = false,
+    int MaxPositionals = int.MaxValue);   // 位置引数の最大数
 
 /// <summary>ツールの定義。ツール名・説明・版は呼び出し側が渡す。</summary>
 public sealed record ToolSpec(
@@ -446,7 +449,7 @@ public sealed record ToolSpec(
     string Description,
     string Version,
     IReadOnlyList<CommandSpec> Commands,
-    IReadOnlyList<OptionSpec>? CommonOptions = null);   // --json などをここへ
+    IReadOnlyList<OptionSpec>? CommonOptions = null);   // --json などをここへ。作った時点で定義を検査する
 
 public enum ParseOutcome { Run, Help, Version, Error }
 
@@ -456,7 +459,8 @@ public sealed class ParseResult
     public ParseOutcome Outcome { get; }
     public string? CommandName { get; }
     public ParsedOptions Options { get; }     // Outcome == Run のとき
-    public string? Text { get; }              // Help: ヘルプ全文 / Error: ASCII のエラー文
+    public string? Text { get; }              // Help: ヘルプ全文 / Version: ツール名 版 / Error: ASCII のエラー文
+    public bool JsonRequested { get; }        // --json が解釈できたか（Version・Error を枠で出す判定。U4）
 }
 
 public sealed class ParsedOptions
@@ -466,6 +470,7 @@ public sealed class ParsedOptions
     public string? Value(string name);                          // 引数 > 環境変数
     public int Int32(string name, int min, int max, int defaultValue);   // 範囲外は UsageException
     public IReadOnlyList<string> List(string name);             // 空白除去・空要素なし
+    public void EnsureAtMostOne(params string[] names);         // 同時に指定できない組。違反は UsageException
     public IReadOnlyList<string> Positionals { get; }
 }
 
@@ -488,6 +493,16 @@ public static class ExitCodes
     public const int UsageError = 2;
     public const int Partial = 3;
     public const int Interrupted = 130;
+
+    /// <summary>優先（130 > 2 > 1 > 3 > 0）の高い方を返す。</summary>
+    public static int Combine(int first, int second);
+}
+
+/// <summary>製品群で共通のオプションの定義（--help・--version は部品が常に受ける）。</summary>
+public static class StandardOptions
+{
+    public static OptionSpec Json { get; }   // ToolSpec.CommonOptions へ
+    public static OptionSpec Yes { get; }    // 確認の質問を持つコマンドの Options へ（N5）
 }
 
 /// <summary>補完のスクリプトを、定義から生成する（決定: PowerShell・bash・zsh）。</summary>
@@ -569,10 +584,15 @@ public static class JsonResult
         Action<Utf8JsonWriter>? writeFields = null);
 }
 
-/// <summary>コマンドの実行に渡す文脈。ExtensionsMigrator の CommandContext と同じ考え方。</summary>
+/// <summary>
+/// コマンドの実行に渡す文脈。ExtensionsMigrator の CommandContext と同じ考え方。
+/// 引数解析の Issue（#170）では、出力は TextWriter（stdout・stderr）で受ける。
+/// CliOutput が入ったら、Stdout・Stderr を CliOutput に置き換える。
+/// </summary>
 public sealed record CommandContext(
     ParsedOptions Options,
-    CliOutput Output,
+    TextWriter Stdout,
+    TextWriter Stderr,
     TextReader Input,
     Func<string, string?> GetEnvironmentVariable);
 
@@ -588,13 +608,32 @@ public static class CliApplication
         ToolSpec tool,
         IReadOnlyDictionary<string, CommandHandler> handlers,
         IReadOnlyList<string> args,
-        CliOutput output,
+        TextWriter stdout,
+        TextWriter stderr,
         TextReader input,
         Func<string, string?> getEnvironmentVariable,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// コンソールと環境変数で RunAsync を実行する。Console.CancelKeyPress を受け、
+    /// 1 回目の Ctrl+C で取り消しの合図、2 回目ですぐ終了（どちらも 130。U18）。
+    /// </summary>
+    public static Task<int> RunWithConsoleAsync(
+        ToolSpec tool,
+        IReadOnlyDictionary<string, CommandHandler> handlers,
+        IReadOnlyList<string> args);
 }
 ```
 
+- **引数解析の実装（#170）で、案から変えたところ**: ①`CliApplication.RunAsync` と `CommandContext` は、`CliOutput` ではなく `TextWriter`（stdout・stderr）を受ける
+  （`CliOutput` は #171。入ったら置き換える）。
+  ②`--json` の枠（`--version --json`・使い方の誤り）は #171 の担当。
+  解析は `ParseResult.JsonRequested` で、`--json` が解釈できたかだけを返す。
+  ③`OptionSpec.DefaultValue`・`CommandSpec.MaxPositionals`・`StandardOptions`・`ParsedOptions.EnsureAtMostOne`・`ExitCodes.Combine`・
+  `CliApplication.RunWithConsoleAsync` を足した。
+  ④`ToolSpec` は作った時点で定義を検査する（名前の形・重複・予約語・ASCII。5.1）。引数なしは、短い使い方を stderr に出して 2（5.3）。
+  ⑤1 回目の Ctrl+C で、`[WARN] Interrupted. ...` を 1 行 stderr に出す（`CliOutput` が入ったら接頭辞と色は `CliOutput` に任せる）。
+  ⑥取り消しの合図が出ていれば、ハンドラーの戻り値によらず 130（優先 130 > 1 > 3 > 0）。
 - 設計の土台は、ExtensionsMigrator の `CommandContext`・`ICommand`（`{P}.Cli/ICommand.cs:8-31`）と、DatabaseConverter の
   `ConverterApplication`（入出力・環境変数・DB を差し替えられる。`{P}.Core/CommandLine/ConverterApplication.cs:29-43`）。
   どちらも「入出力と環境変数を差し替えられる」ので、DB なし・実プロセスなしでテストできる
