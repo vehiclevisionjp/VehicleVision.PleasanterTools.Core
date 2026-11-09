@@ -16,7 +16,7 @@ VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共
 
 決定の内容を変えたい点は、変えずに 9 章へ質問として書く。
 **2026-11-09 に、未決だった U1〜U18 と、そこから出た N1〜N6 へユーザーが回答した。回答を「決定」として本文へ移し、9.3 に一覧を残した。
-質問としての未決は、Core#176 で見つかった 9.6 の Q4・Q5 だけ（9 章。Q1〜Q3 は 2026-11-09 に回答があり、決定にした）。**
+質問としての未決は無い（9 章。Core#176 で見つかった 9.6 の Q1〜Q5 は、2026-11-09 に回答があり、決定にした）。**
 共通の環境変数の接頭辞は、Q7 の「共通は `PLEASANTER_`」を、ユーザーが `VVPT_PLEASANTER_*` へ変更した（6 章）。
 
 ## 1. 範囲と前提
@@ -868,7 +868,7 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | DotNetClient（ライブラリ。公開済み 0.4.0） | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`・`PLEASANTER_SERVER_VERSION`・`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/VehicleVision.PleasanterTools.DotNetClient/PleasanterOptions.cs:166-171` | `VVPT_PLEASANTER_*`（`BASE_URL`・`API_KEY`・`SERVER_VERSION`・`ALLOW_INSECURE_HTTP`。`API_KEY_FILE` は DotNetClient には足さない。ツール側が読む）。**旧名は受け付けず、検出して例外を投げる**（決定、N4） |
 | Web アプリ全般 | `<アプリ ID>_DB_PROVIDER`・`_DB_CONNECTIONSTRING`・`_DB_ALLOW_INSECURE` | Core の `AppDatabase.cs:81-89` | 変更なし |
 | AtomFeed・CalendarFeed・Questionnaire | `PLEASANTER_ALLOW_INSECURE_HTTP`。接続設定を自前で組み立てて DotNetClient へ渡すので、DotNetClient の `FromEnvironment()` の読み取りは届かず、各アプリが読む。IdentityProvider は読まない | AtomFeed・CalendarFeed: `{P}.Pleasanter/PleasanterGateway.cs:20`。Questionnaire: `{P}.Pleasanter/PleasanterOptions.cs:32`（各リポジトリの `origin/develop`、2026-11-09） | `VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`（6.1 の共通の 5 変数のひとつ）。定数はアプリごとに直す。旧名は旧名の検出で案内（`PleasanterEnvironmentNames.Legacy` に含む） |
-| 同 3 アプリの接続設定 | `<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`（と、`_APIKEY_FILE` があるアプリはそれ）・`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL`（設定ファイル・管理画面の項目と対応するアプリの設定。例は AtomFeed の `ATOMFEED_PLEASANTER_BASEURL`） | AtomFeed: `{P}.Web/Services/AppSettingDefinitions.cs:137-142`（CalendarFeed・Questionnaire も接頭辞違いで同じ形） | **決定（2026-11-09、Core#176 の Q1）**: `<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（`_APIKEY_FILE` があれば `VVPT_PLEASANTER_API_KEY_FILE`）へ寄せる。旧名（アプリ ID 付き）は Core に書かず（アプリ固有の値）、各アプリが `LegacyEnvironmentCheck.Find` の `legacy` 引数で渡す。設定ファイル（`Pleasanter.json` など）の項目との対応は、適用の Issue で詰める。**`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` は、共通の 5 変数に無く、扱いは未決**（9.6 の Q4） |
+| 同 3 アプリの接続設定 | `<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`（と、`_APIKEY_FILE` があるアプリはそれ）・`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL`（設定ファイル・管理画面の項目と対応するアプリの設定。例は AtomFeed の `ATOMFEED_PLEASANTER_BASEURL`） | AtomFeed: `{P}.Web/Services/AppSettingDefinitions.cs:137-142`（CalendarFeed・Questionnaire も接頭辞違いで同じ形） | **決定（2026-11-09、Core#176 の Q1）**: `<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（`_APIKEY_FILE` があれば `VVPT_PLEASANTER_API_KEY_FILE`）へ寄せる。旧名（アプリ ID 付き）は Core に書かず（アプリ固有の値）、各アプリが `LegacyEnvironmentCheck.Find` の `legacy` 引数で渡す。設定ファイル（`Pleasanter.json` など）の項目との対応は、適用の Issue で詰める。**`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` は、共通の 5 変数に無く、アプリ固有の接頭辞のまま変更しない（決定、9.6 の Q4）** |
 | McpOAuthWrapper（参考） | `MCP_GENERAL_*`・`MCP_RDS_*`（設定の接頭辞） | `Program.cs:16`、`Bridge/BridgeSetup.cs:23` | Web で CLI ではない。範囲外 |
 
 ### 6.3 共通の接頭辞の変更の影響（`PLEASANTER_*` → `VVPT_PLEASANTER_*`）
@@ -1031,7 +1031,7 @@ flowchart TD
 
 ## 9. 未決・要確認
 
-U1〜U18 と N1〜N6 のすべてに、2026-11-09 に回答があった。**質問としての未決は、Core#176 で見つかった 9.6 の Q4・Q5 だけ。**
+U1〜U18 と N1〜N6 のすべてに、2026-11-09 に回答があった。**質問としての未決は無い（Core#176 で見つかった 9.6 の Q1〜Q5 にも、2026-11-09 に回答があった）。**
 決定（Q1〜Q7 と、2026-11-09 の回答）は覆さない。実装時に新しい疑問が出たら、ここへ質問として足す（9.6）。
 
 ### 9.1 未確認（実機・実コード）と、確認した結果
@@ -1046,7 +1046,7 @@ Windows Terminal・Docker（`mcr.microsoft.com/dotnet/sdk:10.0`、Ubuntu 24.04.5
 | Windows のコンソール・Windows Terminal・Linux で、ANSI の色（31〜33）と `ESC[0m` が読めるか。仮想端末の処理が有効か | **確認した（一部に食い違いあり）。** 下の 3 行 |
 | └ Windows Terminal・ConPTY のターミナル（Claude Desktop の統合ターミナル。PowerShell 7.6.9・cmd.exe） | stdout・stderr とも `GetConsoleMode` が 0x7 で、仮想端末の処理（`ENABLE_VIRTUAL_TERMINAL_PROCESSING` = 0x4）が**有効**。`CliOutput.ForConsole` は色あり（端末・`NO_COLOR` 未設定）と判定し、`ESC[32m[OK]ESC[0m` などを書く。判定と実機は合う |
 | └ 従来のコンソール（`conhost.exe`。アプリを直接起動、または `cmd.exe /c`・Windows PowerShell 5.1・PowerShell 7 の `-Command` 経由） | 確認時（Core#176 の修正前）は、mode が 0x3 で、仮想端末の処理が**無効**なのに、`ForConsole` は色ありと判定した。ESC が解釈されず `←[32m` のような文字で出る恐れがあった（画面は目視していない）。**修正した（Q2。2.4 の 4）:** `ForConsole` が `SetConsoleMode` で有効にする。修正後は、同じ起動方法で mode が 0x3 から 0x7 になり、リダイレクトされた出力先には触らないことを確かめた |
-| └ Linux（Docker の `docker run -t`。bash） | 端末（TTY）では `ESC[32m[OK]ESC[0m`・`ESC[33m[WARN]…`・`ESC[31m[ERROR]…` が出て、`[INFO]` は色なし。`NO_COLOR=1`（TTY）は色なし、`NO_COLOR=` 空は色あり、パイプ（stdout がリダイレクト）は stdout だけ色なしで stderr（TTY）は色あり。判定と実機は合う。確認時は `TERM=dumb` でも色が出た。**修正した（Q3。2.4 の 3）:** `TERM=dumb` は TTY でも色なし（`ESC[?1h ESC=` も出ない）。.NET の `Console` が、TTY で最初に書くときに、こちらが頼んでいない `ESC[?1h ESC=`（キーパッドの送信モード）を stdout の先頭へ出す（`--json` を TTY へ出すと JSON の前に付く。リダイレクトでは出ない。扱いは未決。9.6 の Q5） |
+| └ Linux（Docker の `docker run -t`。bash） | 端末（TTY）では `ESC[32m[OK]ESC[0m`・`ESC[33m[WARN]…`・`ESC[31m[ERROR]…` が出て、`[INFO]` は色なし。`NO_COLOR=1`（TTY）は色なし、`NO_COLOR=` 空は色あり、パイプ（stdout がリダイレクト）は stdout だけ色なしで stderr（TTY）は色あり。判定と実機は合う。確認時は `TERM=dumb` でも色が出た。**修正した（Q3。2.4 の 3）:** `TERM=dumb` は TTY でも色なし（`ESC[?1h ESC=` も出ない）。.NET の `Console` が、TTY で最初に書くときに、こちらが頼んでいない `ESC[?1h ESC=`（キーパッドの送信モード）を stdout の先頭へ出す（`--json` を TTY へ出すと JSON の前に付く。リダイレクトでは出ない。**直さず、既知の挙動とする（決定、9.6 の Q5）**） |
 | `System.Text.Json` の既定のエンコーダーが非 ASCII を `\uXXXX` にするか | **確認した。** 既定のエンコーダーは非 ASCII・サロゲートペアを `\uXXXX` にする（`JsonSerializer`・`Utf8JsonWriter` とも。`<`・`>`・`&`・`'` も）。`JsonResult` は `JavaScriptEncoder` を明示済みで、`JsonTests` が固定している（3.3） |
 | CalendarStyleCreator で想定外の例外が起きたときの終了コード | **確認した。** `origin/develop`（`91dcaeb`）を作業用のコピーでビルドし、`/output` に既存のファイルを指定して `IOException` を起こした。捕まえず（`Program.cs` の `catch` は `UserError` と `OperationCanceledException` だけ）、スタックトレースを stderr に出す。終了コードは Windows が -532462766（0xE0434352。bash などでは下位 8 ビットの 82 に見える）、Linux（Docker）が 134（SIGABRT）。4 章の「想定外の例外は 1 と `[ERROR]`」に合わない。適用の Issue（8 章の順 8）で直す。なお、接続できない iCal の URL・存在しない CSV は、`UserError` として 2 になる |
 | 補完の 3 シェル（PowerShell・bash・zsh）での実際の挙動と CI での確かめ方 | **確認した**（Core#173・#183。5.5）。CI は Linux の bash・PowerShell のみ。手元では、bash 5.3（Git for Windows）・PowerShell 7.6.9・Windows PowerShell 5.1・zsh 5.9（Alpine のコンテナ）で、コマンド名・オプション・列挙・ファイル名・動的な値（偽のツール）が通った。Windows PowerShell 5.1 は `--` だけでは呼ばれない（制限）。**未確認:** macOS（bash 3.2・zsh）、Linux 上の PowerShell の手元での確認（CI で確かめる）、bash の readline 経由の実際の Tab 入力、`bash-completion` 入りの環境、実際のツールの実行ファイルでの `__complete` の往復 |
@@ -1118,8 +1118,8 @@ Core は Public、決定の元になった記録は internal。この文書は�
 | Q1 | AtomFeed・CalendarFeed・Questionnaire が自前で持つ Pleasanter への接続設定（6.2）を、共通の `VVPT_PLEASANTER_*` へ寄せるか | **決定（2026-11-09）**: 寄せる。`<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（と `_API_KEY_FILE`）。6.2・8 章へ反映 |
 | Q2 | Windows の従来のコンソールで ESC がそのまま出る恐れ（9.1）に、`CliOutput.ForConsole` が仮想端末の処理を有効にし、できなければ色なしにするか | **決定（2026-11-09）**: する。`Core.Cli` に実装した（2.4 の 4。`ConsoleVirtualTerminal`、`kernel32` の P/Invoke 3 関数） |
 | Q3 | `TERM=dumb` のとき色を出さないか | **決定（2026-11-09）**: 出さない。実装した（2.4 の 3） |
-| Q4 | Web アプリ 3 つの接続設定のうち、共通の 5 変数に無い `_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` をどうするか | **未決。** 案: アプリ固有の接頭辞のまま変更しない。`_APIVERSION`・`_TIMEOUTSECONDS` は DotNetClient の既定と同じ性質で共通にもできるが、`_TIMEZONE`（API キーの利用者の設定）と `_LINKBASEURL`（アプリの画面の URL）はアプリごとに違い得て、共通にすると取り違えやすい |
-| Q5 | .NET の `Console` が、TTY の stdout の先頭へ `ESC[?1h ESC=`（キーパッドの送信モード）を出す（9.1。`--json` を TTY へ出すと JSON の前に付く）ことをどうするか | **未決**（ユーザーの回答なし）。リダイレクトでは出ないので、機械が読む場合には影響しない |
+| Q4 | Web アプリ 3 つの接続設定のうち、共通の 5 変数に無い `_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` をどうするか | **決定（2026-11-09）: アプリ固有の接頭辞のまま変更しない。**`_APIVERSION`・`_TIMEOUTSECONDS` は DotNetClient の既定と同じ性質で共通にもできるが、`_TIMEZONE`（API キーの利用者の設定）と `_LINKBASEURL`（アプリの画面の URL）はアプリごとに違い得て、共通にすると取り違えやすいため |
+| Q5 | .NET の `Console` が、TTY の stdout の先頭へ `ESC[?1h ESC=`（キーパッドの送信モード）を出す（9.1。`--json` を TTY へ出すと JSON の前に付く）ことをどうするか | **決定（2026-11-09）: 直さず、既知の挙動として書く。** `--json` は機械が読むもので、パイプ・リダイレクトで使う前提。リダイレクトでは出ないので、機械が読む場合には影響しない（端末へ直接出したときの表示だけの話） |
 
 ## 10. この仕様書の範囲外
 
