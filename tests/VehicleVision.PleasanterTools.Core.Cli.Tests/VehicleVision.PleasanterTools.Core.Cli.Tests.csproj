@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Cli\VehicleVision.PleasanterTools.Core.Cli.csproj" />
+    <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Cli.Testing\VehicleVision.PleasanterTools.Core.Cli.Testing.csproj" />
   </ItemGroup>
 
 </Project>
