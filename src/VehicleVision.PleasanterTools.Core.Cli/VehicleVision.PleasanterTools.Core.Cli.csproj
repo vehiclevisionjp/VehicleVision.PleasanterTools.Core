@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Cli</PackageId>
+    <Description>VehicleVision.PleasanterTools 各 CLI 共通の部品（引数の解析・ヘルプ・エラー・終了コード・Ctrl+C・実行の入口）。BCL だけに依存する。</Description>
+    <PackageTags>pleasanter;vehiclevision;cli;command-line;argument-parser</PackageTags>
+    <!-- nuget.org への公開は別 Issue（公開準備: #177）で承認を得てから行う。
+         release.yml は dotnet pack で src 配下のすべてを公開するため、それまでは配布物に含めない。
+         公開準備の PR でこの行を外す -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VehicleVision.PleasanterTools.Core.Cli.Tests" />
+  </ItemGroup>
+
+</Project>
