@@ -51,6 +51,10 @@ public static class CliApplication
     /// <param name="input">入力。</param>
     /// <param name="getEnvironmentVariable">環境変数の取得。</param>
     /// <param name="cancellationToken">取り消しの合図（Ctrl+C）。</param>
+    /// <param name="completion">
+    /// 動的な値の補完の設定。渡すと隠しコマンド <c>__complete</c>（先頭の引数）を処理する。
+    /// ヘルプ・補完の候補には出ず、失敗・時間超過でも何も出さずに 0 を返す。省略時は <c>__complete</c> を特別扱いしない。
+    /// </param>
     /// <exception cref="ArgumentException">ハンドラーが定義と合わない（呼び出し側の誤り）。</exception>
     public static async Task<int> RunAsync(
         ToolSpec tool,
@@ -59,7 +63,8 @@ public static class CliApplication
         CliOutput output,
         TextReader input,
         Func<string, string?> getEnvironmentVariable,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CompletionSettings? completion = null)
     {
         ArgumentNullException.ThrowIfNull(tool);
         ArgumentNullException.ThrowIfNull(handlers);
@@ -73,6 +78,12 @@ public static class CliApplication
             {
                 throw new ArgumentException($"No handler for command '{command.Name}'.", nameof(handlers));
             }
+        }
+
+        // 隠しコマンド（動的な値の呼び戻し）。解析・ヘルプ・エラー表示を通さない
+        if (completion is not null && args.Count >= 1 && args[0] == Completion.HiddenCommandName)
+        {
+            return await Completion.RunHiddenCommandAsync(tool, completion, [.. args.Skip(1)], output, cancellationToken).ConfigureAwait(false);
         }
 
         // 引数なしでコマンドが必要なときは、短い使い方を stderr に出して 2
@@ -144,10 +155,15 @@ public static class CliApplication
     /// <see cref="RunAsync"/> を実行する。Ctrl+C は、1 回目で取り消しの合図を出して安全な所で止め（130）、
     /// 2 回目ですぐ終了する（130）。
     /// </summary>
+    /// <param name="tool">ツールの定義。</param>
+    /// <param name="handlers">コマンド名からハンドラーへの対応。</param>
+    /// <param name="args">引数。</param>
+    /// <param name="completion">動的な値の補完の設定（<see cref="RunAsync(ToolSpec, IReadOnlyDictionary{string, CommandHandler}, IReadOnlyList{string}, CliOutput, TextReader, Func{string, string?}, CancellationToken, CompletionSettings?)"/> と同じ）。</param>
     public static async Task<int> RunWithConsoleAsync(
         ToolSpec tool,
         IReadOnlyDictionary<string, CommandHandler> handlers,
-        IReadOnlyList<string> args)
+        IReadOnlyList<string> args,
+        CompletionSettings? completion = null)
     {
         using var cancellation = new CancellationTokenSource();
         var output = CliOutput.ForConsole();
@@ -167,7 +183,7 @@ public static class CliApplication
         {
             return await RunAsync(
                 tool, handlers, args, output, Console.In,
-                Environment.GetEnvironmentVariable, cancellation.Token).ConfigureAwait(false);
+                Environment.GetEnvironmentVariable, cancellation.Token, completion).ConfigureAwait(false);
         }
         finally
         {
