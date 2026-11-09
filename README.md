@@ -10,7 +10,7 @@ PleasanterTools は、ノーコード／ローコード業務基盤 [Pleasanter]
 **「孫の手」として当社が作っているツール群**です。
 運営: 株式会社ピー・エム・シー ITソリューション事業部 / PMC Co., Ltd. IT Solution Div.
 Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[Core.Web][nuget-web]・
-[Core.Web.Testing][nuget-testing] の 4 パッケージを nuget.org で公開しています（安定版 0.1.0。1.0.0 未満のため互換は保証しません）。
+[Core.Web.Testing][nuget-testing] を nuget.org で公開しています（安定版 0.1.0。1.0.0 未満のため互換は保証しません）。
 
 ### ファミリーの一覧
 
@@ -181,7 +181,7 @@ nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Dat
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`][release-guide]
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
-- **安定版 0.1.0 を 2026-10-30 に公開しました**（タグ `v0.1.0`。4 パッケージとも同じ版）。
+- **安定版 0.1.0 を 2026-10-30 に公開しました**（タグ `v0.1.0`。当時のパッケージはすべて同じ版）。
   プレビュー版は、Mail・Data が preview.2〜15、Web が preview.10〜15、Web.Testing が preview.11〜15 です
 - 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）
 - 2026-10-30 に各パッケージの版一覧を確認しました。

@@ -4,10 +4,6 @@
     <PackageId>VehicleVision.PleasanterTools.Core.Contracts</PackageId>
     <Description>VehicleVision.PleasanterTools 各ツール・ライブラリが共有する名前と値（環境変数名・--json の枠のキー名・エラーコード名・終了コードの値）。定数と読み取り専用の対応表だけで、処理を持たない。BCL だけに依存する。</Description>
     <PackageTags>pleasanter;vehiclevision;contracts;constants</PackageTags>
-    <!-- nuget.org への公開は別 Issue（公開準備: #177）で承認を得てから行う。
-         release.yml は dotnet pack で src 配下のすべてを公開するため、それまでは配布物に含めない。
-         公開準備の PR でこの行を外す -->
-    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
 </Project>
