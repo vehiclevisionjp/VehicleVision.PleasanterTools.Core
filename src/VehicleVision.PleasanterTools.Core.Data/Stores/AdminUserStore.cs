@@ -544,12 +544,12 @@ public sealed class AdminUserStore(
         ArgumentNullException.ThrowIfNull(language);
         if (language.Length > 0 && string.IsNullOrWhiteSpace(language))
         {
-            throw new ArgumentException("言語は空にするか、値を入れる（空白だけは不可）。", nameof(language));
+            throw new ArgumentException("The language must be empty or contain a non-whitespace value.", nameof(language));
         }
 
         if (language.Length > 16)
         {
-            throw new ArgumentException("言語は 16 文字以内にする。", nameof(language));
+            throw new ArgumentException("The language must be at most 16 characters.", nameof(language));
         }
 
         await using var connection = connections.Create();
@@ -623,6 +623,6 @@ internal static class AdminUserSql
             "SELECT `Id` FROM `Core_AdminUsers` WHERE `Role` = @Admin ORDER BY `Id` FOR UPDATE",
         DatabaseProvider.Sqlite =>
             "SELECT \"Id\" FROM \"Core_AdminUsers\" WHERE \"Role\" = @Admin ORDER BY \"Id\"",
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 }

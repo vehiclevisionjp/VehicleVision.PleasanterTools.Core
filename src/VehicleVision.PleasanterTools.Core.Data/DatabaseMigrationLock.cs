@@ -49,7 +49,7 @@ public sealed class DatabaseMigrationLock : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(lockName);
         if (timeout <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(timeout), "待機時間は 0 より大きくする");
+            throw new ArgumentOutOfRangeException(nameof(timeout), "The timeout must be greater than zero.");
         }
 
         return provider is DatabaseProvider.Sqlite

@@ -67,7 +67,7 @@ public sealed class RateLimitStore(IDbConnectionFactory connections) : IRateLimi
         }
 
         // 3 回やり直しても決まらないのは異常（DB の不調など）。呼び出し側が代わりの数え方へ回す
-        throw new InvalidOperationException("レート制限の数えを更新できませんでした。");
+        throw new InvalidOperationException("The rate limit counter could not be updated.");
     }
 
     public async Task<int> PurgeAsync(long beforeWindow, CancellationToken cancellationToken = default)

@@ -74,6 +74,8 @@ public sealed class AppDatabaseTests : IDisposable
         var exception = Assert.Throws<InvalidOperationException>(
             () => database.ParseProvider("oracle", DatabaseProvider.Sqlite));
         Assert.Contains("SAMPLE_DB_PROVIDER", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'oracle'", exception.Message, StringComparison.Ordinal);
+        AssertAscii(exception.Message);
     }
 
     [Fact]
@@ -110,10 +112,42 @@ public sealed class AppDatabaseTests : IDisposable
         var exception = Assert.Throws<InvalidOperationException>(
             () => database.EnsureSecure(DatabaseProvider.SqlServer, insecure, allowInsecure: false));
         Assert.Contains("SAMPLE_DB_ALLOW_INSECURE", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Encrypt=False", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Password", exception.Message, StringComparison.Ordinal);
+        AssertAscii(exception.Message);
 
         // 緩める設定が true なら通る
         database.EnsureSecure(DatabaseProvider.SqlServer, insecure, allowInsecure: true);
     }
+
+    [Theory]
+    [InlineData(DatabaseProvider.SqlServer, "Server=db;Database=d;Encrypt=False;TrustServerCertificate=True")]
+    [InlineData(DatabaseProvider.PostgreSql, "Host=db;Database=d;SSL Mode=Disable")]
+    [InlineData(DatabaseProvider.PostgreSql, "Host=db;Database=d;SSL Mode=Prefer")]
+    [InlineData(DatabaseProvider.PostgreSql, "Host=db;Database=d;SSL Mode=Require")]
+    [InlineData(DatabaseProvider.MySql, "Server=db;Database=d;SslMode=None")]
+    [InlineData(DatabaseProvider.MySql, "Server=db;Database=d;SslMode=Preferred")]
+    [InlineData(DatabaseProvider.MySql, "Server=db;Database=d;SslMode=Required")]
+    public void 暗号化の問題の文言は英語の_ASCII_だけ(DatabaseProvider provider, string connectionString)
+    {
+        var problems = ConnectionSecurity.Inspect(provider, connectionString);
+
+        Assert.NotEmpty(problems);
+        Assert.All(problems, problem => AssertAscii(problem.Reason));
+    }
+
+    [Fact]
+    public void 使えないアプリ_ID_の例外は英語の_ASCII_だけ()
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => new AppDatabase("Bad_Id", typeof(AppDatabaseTests).Assembly));
+
+        Assert.Contains("'Bad_Id'", exception.Message, StringComparison.Ordinal);
+        AssertAscii(exception.Message.Replace(" (Parameter 'appId')", string.Empty, StringComparison.Ordinal));
+    }
+
+    private static void AssertAscii(string message) =>
+        Assert.True(message.All(character => character is >= ' ' and <= '~'), $"Not ASCII: {message}");
 
     public void Dispose()
     {

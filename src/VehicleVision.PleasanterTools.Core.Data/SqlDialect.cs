@@ -23,8 +23,8 @@ public static partial class SqlDialect
         DatabaseProvider.PostgreSql => "SELECT pg_try_advisory_lock(@Key);",
         DatabaseProvider.MySql => "SELECT GET_LOCK(@Name, 0);",
         DatabaseProvider.Sqlite => throw new NotSupportedException(
-            "SQLite のマイグレーション排他にはファイルロックを使う"),
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+            "SQLite migration locking uses a file lock instead of SQL."),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 
     /// <summary>起動時マイグレーションのロックを解放する SQL。</summary>
@@ -35,8 +35,8 @@ public static partial class SqlDialect
         DatabaseProvider.PostgreSql => "SELECT pg_advisory_unlock(@Key);",
         DatabaseProvider.MySql => "SELECT RELEASE_LOCK(@Name);",
         DatabaseProvider.Sqlite => throw new NotSupportedException(
-            "SQLite のマイグレーション排他にはファイルロックを使う"),
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+            "SQLite migration locking uses a file lock instead of SQL."),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 
     /// <summary>ロック取得 SQL の戻り値が成功を表すか。</summary>
@@ -50,8 +50,8 @@ public static partial class SqlDialect
             && result is not DBNull
             && Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) == 1,
         DatabaseProvider.Sqlite => throw new NotSupportedException(
-            "SQLite のマイグレーション排他にはファイルロックを使う"),
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+            "SQLite migration locking uses a file lock instead of SQL."),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 
     /// <summary>最後に適用したマイグレーションの時刻を読む SQL。</summary>
@@ -109,7 +109,7 @@ public static partial class SqlDialect
         DatabaseProvider.SqlServer => $"[{identifier}]",
         DatabaseProvider.PostgreSql or DatabaseProvider.Sqlite => $"\"{identifier}\"",
         DatabaseProvider.MySql => $"`{identifier}`",
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 
     /// <summary><c>RETURNING</c> 相当が使えるか。</summary>
@@ -129,7 +129,7 @@ public static partial class SqlDialect
         DatabaseProvider.SqlServer => "OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY",
         DatabaseProvider.PostgreSql or DatabaseProvider.MySql or DatabaseProvider.Sqlite =>
             "LIMIT @Limit OFFSET @Offset",
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 
     /// <summary><c>LIKE</c> の逃がし文字。</summary>

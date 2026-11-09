@@ -57,7 +57,7 @@ public static class ConnectionSecurity
                     // それでも咎めるのは、**できない指定を黙って読み替えないため**。
                     // 「切ったつもりで動いている」状態を作らない
                     problems.Add(new Problem(
-                        "Encrypt=False になっている。この設定は通らない（接続は必ず暗号化する）"));
+                        "Encrypt=False is set. Connections are always encrypted, so this setting is rejected."));
                 }
 
                 if (IsTrue(builder, "TrustServerCertificate"))
@@ -65,7 +65,7 @@ public static class ConnectionSecurity
                     // **暗号化はされるが、相手が本物かを確かめない。**
                     // 中間者に差し替えられても気付けない
                     problems.Add(new Problem(
-                        "TrustServerCertificate=True になっている。証明書を確かめないため中間者を見抜けない"));
+                        "TrustServerCertificate=True is set. The server certificate is not verified, so a man-in-the-middle cannot be detected."));
                 }
 
                 break;
@@ -77,21 +77,21 @@ public static class ConnectionSecurity
 
                 if (builder.SslMode is SslMode.Disable)
                 {
-                    problems.Add(new Problem("SslMode=Disable になっている。通信が平文で流れる"));
+                    problems.Add(new Problem("SslMode=Disable is set. Traffic is sent in plain text."));
                 }
 
                 if (builder.SslMode is SslMode.Prefer or SslMode.Allow)
                 {
                     // **相手が拒めば平文へ落ちる。** 落ちたことは利用者に見えない
                     problems.Add(new Problem(
-                        $"SslMode={builder.SslMode} は、相手が拒むと平文へ落ちる。Require 以上にする"));
+                        $"SslMode={builder.SslMode} falls back to plain text if the server refuses encryption. Use Require or stricter."));
                 }
 
                 if (builder.SslMode is SslMode.Require)
                 {
                     // Npgsql の Require は証明書を確かめない（VerifyCA / VerifyFull が確かめる）
                     problems.Add(new Problem(
-                        "SslMode=Require は証明書を確かめない。VerifyCA か VerifyFull にする"));
+                        "SslMode=Require does not verify the server certificate. Use VerifyCA or VerifyFull."));
                 }
 
                 break;
@@ -103,19 +103,19 @@ public static class ConnectionSecurity
 
                 if (builder.SslMode is MySqlSslMode.None or MySqlSslMode.Disabled)
                 {
-                    problems.Add(new Problem("SslMode=None になっている。通信が平文で流れる"));
+                    problems.Add(new Problem("SslMode=None is set. Traffic is sent in plain text."));
                 }
 
                 if (builder.SslMode is MySqlSslMode.Preferred)
                 {
                     problems.Add(new Problem(
-                        "SslMode=Preferred は、相手が拒むと平文へ落ちる。Required 以上にする"));
+                        "SslMode=Preferred falls back to plain text if the server refuses encryption. Use Required or stricter."));
                 }
 
                 if (builder.SslMode is MySqlSslMode.Required)
                 {
                     problems.Add(new Problem(
-                        "SslMode=Required は証明書を確かめない。VerifyCA か VerifyFull にする"));
+                        "SslMode=Required does not verify the server certificate. Use VerifyCA or VerifyFull."));
                 }
 
                 break;
@@ -127,7 +127,7 @@ public static class ConnectionSecurity
                 break;
 
             default:
-                problems.Add(new Problem($"対応していない RDBMS: {provider}"));
+                problems.Add(new Problem($"Unsupported database provider: {provider}"));
                 break;
         }
 
@@ -168,8 +168,8 @@ public static class ConnectionSecurity
         }
 
         throw new InvalidOperationException(
-            "DB への接続が暗号化されていない、または相手を確かめていない: "
+            "The database connection is not encrypted or does not verify the server: "
             + string.Join(" / ", problems.Select(problem => problem.Reason))
-            + $"。検証環境で意図して緩めるなら {allowSetting}=true を設定する");
+            + $". To relax this deliberately in a test environment, set {allowSetting}=true.");
     }
 }
