@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Data\VehicleVision.PleasanterTools.Core.Data.csproj" />
+    <!-- 契約テスト用。Core.Data 自身は Core.Cli を参照しない（参照するのはテスト側だけ） -->
+    <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Cli.Testing\VehicleVision.PleasanterTools.Core.Cli.Testing.csproj" />
   </ItemGroup>
 
 </Project>
