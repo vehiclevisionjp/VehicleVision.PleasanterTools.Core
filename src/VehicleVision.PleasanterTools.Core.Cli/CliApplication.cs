@@ -20,7 +20,7 @@ public static class CliApplication
     /// <param name="getEnvironmentVariable">環境変数の取得。</param>
     /// <param name="cancellationToken">取り消しの合図（Ctrl+C）。</param>
     /// <exception cref="ArgumentException">ハンドラーが定義と合わない（呼び出し側の誤り）。</exception>
-    public static async Task<int> RunAsync(
+    public static Task<int> RunAsync(
         ToolSpec tool,
         IReadOnlyDictionary<string, CommandHandler> handlers,
         IReadOnlyList<string> args,
@@ -30,11 +30,39 @@ public static class CliApplication
         Func<string, string?> getEnvironmentVariable,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(stdout);
+        ArgumentNullException.ThrowIfNull(stderr);
+        ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
+        // 端末ではない（色なし）として扱う。端末の判定と秘密の伏せは、CliOutput を渡すオーバーロードで行う
+        var output = new CliOutput(stdout, stderr, getEnvironmentVariable, false, false);
+        return RunAsync(tool, handlers, args, output, input, getEnvironmentVariable, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="CliOutput"/>（接頭辞・色・ASCII 化・秘密の伏せ）で出力する <see cref="RunAsync(ToolSpec, IReadOnlyDictionary{string, CommandHandler}, IReadOnlyList{string}, TextWriter, TextWriter, TextReader, Func{string, string?}, CancellationToken)"/>。
+    /// <c>--version --json</c> と、<c>--json</c> が解釈できたときの使い方の誤りは、枠つきの JSON で stdout へ出す（仕様書 3.2、決定 U4）。
+    /// </summary>
+    /// <param name="tool">ツールの定義。</param>
+    /// <param name="handlers">コマンド名（定義の綴り）からハンドラーへの対応。</param>
+    /// <param name="args">引数。</param>
+    /// <param name="output">出力。</param>
+    /// <param name="input">入力。</param>
+    /// <param name="getEnvironmentVariable">環境変数の取得。</param>
+    /// <param name="cancellationToken">取り消しの合図（Ctrl+C）。</param>
+    /// <exception cref="ArgumentException">ハンドラーが定義と合わない（呼び出し側の誤り）。</exception>
+    public static async Task<int> RunAsync(
+        ToolSpec tool,
+        IReadOnlyDictionary<string, CommandHandler> handlers,
+        IReadOnlyList<string> args,
+        CliOutput output,
+        TextReader input,
+        Func<string, string?> getEnvironmentVariable,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(tool);
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(args);
-        ArgumentNullException.ThrowIfNull(stdout);
-        ArgumentNullException.ThrowIfNull(stderr);
+        ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
         foreach (var command in tool.Commands)
@@ -48,7 +76,7 @@ public static class CliApplication
         // 引数なしでコマンドが必要なときは、短い使い方を stderr に出して 2
         if (args.Count == 0)
         {
-            WriteLines(stderr, HelpText.ShortUsage(tool));
+            WriteLines(output.Progress, HelpText.ShortUsage(tool));
             return ExitCodes.UsageError;
         }
 
@@ -56,15 +84,24 @@ public static class CliApplication
         switch (parsed.Outcome)
         {
             case ParseOutcome.Help:
+                WriteLines(output.Result, parsed.Text!);
+                return ExitCodes.Success;
             case ParseOutcome.Version:
-                WriteLines(stdout, parsed.Text!);
+                if (parsed.JsonRequested)
+                {
+                    output.WriteVersionJson(tool.Version);
+                }
+                else
+                {
+                    WriteLines(output.Result, parsed.Text!);
+                }
                 return ExitCodes.Success;
             case ParseOutcome.Error:
-                WriteUsageError(stderr, tool, parsed.Text!);
+                WriteUsageError(output, tool, parsed.CommandName, parsed.Text!, parsed.JsonRequested);
                 return ExitCodes.UsageError;
         }
 
-        var context = new CommandContext(parsed.Options, stdout, stderr, input, getEnvironmentVariable);
+        var context = new CommandContext(parsed.Options, output, input, getEnvironmentVariable);
         int code;
         try
         {
@@ -72,7 +109,7 @@ public static class CliApplication
         }
         catch (UsageException ex)
         {
-            WriteUsageError(stderr, tool, ex.Message);
+            WriteUsageError(output, tool, parsed.CommandName, ex.Message, parsed.JsonRequested);
             return ExitCodes.UsageError;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -82,7 +119,17 @@ public static class CliApplication
         catch (Exception)
         {
             // 例外の文言は秘密を含み得るので出さない（仕様書 4 章）
-            await stderr.WriteLineAsync("[ERROR] An unexpected error occurred.").ConfigureAwait(false);
+            output.Error("An unexpected error occurred.");
+            if (parsed.JsonRequested && !output.HasWrittenToStdout)
+            {
+                // 出力済みなら、枠を足すと JSON が 2 つになるので出さない
+                output.WriteJson(
+                    parsed.CommandName!,
+                    false,
+                    ExitCodes.Failure,
+                    [new CliIssue("UnexpectedError", "An unexpected error occurred.")],
+                    []);
+            }
             code = ExitCodes.Failure;
         }
 
@@ -101,9 +148,10 @@ public static class CliApplication
         IReadOnlyList<string> args)
     {
         using var cancellation = new CancellationTokenSource();
+        var output = CliOutput.ForConsole();
         var coordinator = new InterruptCoordinator(
             cancellation,
-            () => Console.Error.WriteLine("[WARN] Interrupted. Stopping at a safe point. Press Ctrl+C again to exit immediately."),
+            () => output.Warn("Interrupted. Stopping at a safe point. Press Ctrl+C again to exit immediately."),
             () => Environment.Exit(ExitCodes.Interrupted));
         ConsoleCancelEventHandler onCancel = (_, e) =>
         {
@@ -116,7 +164,7 @@ public static class CliApplication
         try
         {
             return await RunAsync(
-                tool, handlers, args, Console.Out, Console.Error, Console.In,
+                tool, handlers, args, output, Console.In,
                 Environment.GetEnvironmentVariable, cancellation.Token).ConfigureAwait(false);
         }
         finally
@@ -125,18 +173,28 @@ public static class CliApplication
         }
     }
 
-    private static void WriteUsageError(TextWriter stderr, ToolSpec tool, string message)
+    private static void WriteUsageError(CliOutput output, ToolSpec tool, string? commandName, string message, bool json)
     {
-        stderr.WriteLine($"[ERROR] {AsciiText.Sanitize(message)}");
-        stderr.WriteLine($"Run '{tool.Name} --help' for usage.");
+        output.Error(message);
+        output.Progress($"Run '{tool.Name} --help' for usage.");
+        if (json)
+        {
+            // コマンドが特定できないとき（コマンド名より前の誤り）は、ツール名を command に入れる。code は Usage（案）
+            output.WriteJson(
+                commandName ?? tool.Name,
+                false,
+                ExitCodes.UsageError,
+                [new CliIssue("Usage", CliOutput.ToAscii(message))],
+                []);
+        }
     }
 
     /// <summary>行ごとに書く（改行は書き込み先の設定に従う）。</summary>
-    private static void WriteLines(TextWriter writer, string text)
+    private static void WriteLines(Action<string> write, string text)
     {
         foreach (var line in text.TrimEnd('\n').Split('\n'))
         {
-            writer.WriteLine(line);
+            write(line);
         }
     }
 }

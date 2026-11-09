@@ -64,8 +64,8 @@ public static class CommandLineParser
             {
                 var candidate = commonLookup.Classify(args[commandIndex]);
                 throw new UsageException(candidate.Kind == TokenKind.UnknownLongOption
-                    ? $"Unknown option: {AsciiText.Sanitize(candidate.DisplayName)}"
-                    : $"Unknown command: {AsciiText.Sanitize(candidate.DisplayName)}");
+                    ? $"Unknown option: {CliOutput.ToAscii(candidate.DisplayName)}"
+                    : $"Unknown command: {CliOutput.ToAscii(candidate.DisplayName)}");
             }
             return ParseCommand(tool, command, lookup, args, commandIndex, getEnv, switches.Json);
         }
@@ -180,7 +180,7 @@ public static class CommandLineParser
         {
             if (!command.AcceptsPositionals)
             {
-                throw new UsageException($"Unknown option or argument: {AsciiText.Sanitize(displayName)}");
+                throw new UsageException($"Unknown option or argument: {CliOutput.ToAscii(displayName)}");
             }
             if (positionals.Count >= command.MaxPositionals)
             {
@@ -209,7 +209,7 @@ public static class CommandLineParser
                     terminated = true;
                     break;
                 case TokenKind.UnknownLongOption:
-                    throw new UsageException($"Unknown option: {AsciiText.Sanitize(token.DisplayName)}");
+                    throw new UsageException($"Unknown option: {CliOutput.ToAscii(token.DisplayName)}");
                 case TokenKind.Positional:
                     AddPositional(text, token.DisplayName);
                     break;

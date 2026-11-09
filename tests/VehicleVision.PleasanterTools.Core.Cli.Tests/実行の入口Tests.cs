@@ -45,8 +45,8 @@ public sealed class 実行の入口Tests
         var result = await Execute(["run", "--out", "x", "--dry-run"], (context, _) =>
         {
             seen = context;
-            context.Stdout.WriteLine("result line");
-            context.Stderr.WriteLine("progress line");
+            context.Output.Result("result line");
+            context.Output.Progress("progress line");
             return Task.FromResult(context.Input.ReadLine() == "yes" ? ExitCodes.Success : ExitCodes.Failure);
         }, input: "yes\n");
         Assert.Equal(0, result.Code);
