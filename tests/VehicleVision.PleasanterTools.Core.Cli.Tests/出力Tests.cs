@@ -172,4 +172,71 @@ public sealed class 出力Tests
         Assert.All(stdoutLines, line => Assert.Matches("^\\[OK\\] worker \\d item \\d+ x{200}$", line));
         Assert.All(stderrLines, line => Assert.Matches("^\\[ERROR\\] worker \\d item \\d+ y{200}$", line));
     }
+
+    [Theory]
+    // 端末か × TERM（未設定・dumb・ほか）。NO_COLOR は未設定
+    [InlineData(true, null, true)]
+    [InlineData(true, "xterm-256color", true)]
+    [InlineData(true, "dumb", false)]
+    [InlineData(true, "DUMB", true)]
+    [InlineData(false, "dumb", false)]
+    public void TERMがdumbのときは端末でも色なし(bool isTerminal, string? term, bool expected)
+    {
+        var env = term is null ? TestTool.Env() : TestTool.Env(("TERM", term));
+        Assert.Equal(expected, CliOutput.UseColor(isTerminal, env));
+    }
+
+    [Fact]
+    public void TERMがdumbでもNO_COLORの判定は変わらず_色なしのまま()
+    {
+        Assert.False(CliOutput.UseColor(true, TestTool.Env(("TERM", "dumb"), ("NO_COLOR", ""))));
+        Assert.False(CliOutput.UseColor(true, TestTool.Env(("TERM", "xterm"), ("NO_COLOR", "1"))));
+    }
+
+    [Theory]
+    // 端末か（stdout・stderr）× 仮想端末の処理を有効にできるか（stdout・stderr）
+    [InlineData(true, true, true, true, true, true)]
+    [InlineData(true, true, false, false, false, false)]
+    [InlineData(true, true, true, false, true, false)]
+    [InlineData(true, true, false, true, false, true)]
+    [InlineData(false, true, true, true, false, true)]
+    [InlineData(true, false, true, true, true, false)]
+    public void 仮想端末の処理を有効にできない端末の出力先は色なし(
+        bool stdoutTty, bool stderrTty, bool stdoutVt, bool stderrVt, bool stdoutColor, bool stderrColor)
+    {
+        using var sink = new Sink();
+        var asked = new List<bool>();
+        var output = CliOutput.ForConsole(
+            sink.Stdout,
+            sink.Stderr,
+            TestTool.Env(),
+            stdoutTty,
+            stderrTty,
+            isStandardError =>
+            {
+                asked.Add(isStandardError);
+                return isStandardError ? stderrVt : stdoutVt;
+            });
+        output.Ok("a");
+        output.Error("b");
+
+        Assert.Equal(stdoutColor ? $"{Esc}[32m[OK]{Esc}[0m a\n" : "[OK] a\n", sink.Stdout.ToString());
+        Assert.Equal(stderrColor ? $"{Esc}[31m[ERROR]{Esc}[0m b\n" : "[ERROR] b\n", sink.Stderr.ToString());
+        // 端末ではない出力先（リダイレクト）には、モードを変える問い合わせをしない
+        Assert.Equal(stdoutTty, asked.Contains(false));
+        Assert.Equal(stderrTty, asked.Contains(true));
+    }
+
+    [Fact]
+    public void Windows以外とコンソールでない出力先では仮想端末の処理を有効にする関数が実機で安全に動く()
+    {
+        // 実機の結果は環境で変わるので、例外を投げず、Windows 以外では真になることだけを確かめる
+        var stdout = ConsoleVirtualTerminal.TryEnable(false);
+        var stderr = ConsoleVirtualTerminal.TryEnable(true);
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.True(stdout);
+            Assert.True(stderr);
+        }
+    }
 }
