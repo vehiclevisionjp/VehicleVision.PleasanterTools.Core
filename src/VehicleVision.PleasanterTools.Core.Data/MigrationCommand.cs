@@ -25,6 +25,7 @@ public static class MigrationCommand
     /// <returns>0: 適用済み／適用完了、1: 状態の確認で未適用あり、または DB の待機期限切れ。</returns>
     /// <remarks>
     /// 文言は英語・ASCII。結果は stdout、進行表示と失敗は stderr（CLI の共通仕様書 2 章）。
+    /// 待機期限切れの <c>[ERROR]</c> は、固定の文言と例外の型名だけ（例外のメッセージは出さない）。
     /// <c>--help</c>・<c>--version</c>・<c>--json</c>・<c>--yes</c>・中断（130）は受けない。
     /// 待機の指定は <c>--wait-for-db N</c>・<c>--wait-for-db=N</c>・<c>--wait-for-db:N</c> の 3 書式（最初の指定を採る）。
     /// </remarks>
@@ -50,8 +51,9 @@ public static class MigrationCommand
                 .ConfigureAwait(false);
             if (failure is not null)
             {
+                // ドライバーの例外メッセージは出さない（接続文字列などの秘密が混ざり得る。仕様書 2.1）。型名だけを示す
                 await error.WriteLineAsync(
-                    $"[ERROR] Database not reachable after {wait.TotalSeconds:0}s: {ToAscii(failure.Message)}")
+                    $"[ERROR] Database not reachable after {wait.TotalSeconds:0}s ({ToAscii(failure.GetType().Name)}).")
                     .ConfigureAwait(false);
                 return 1;
             }
