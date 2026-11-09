@@ -9,6 +9,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Cli.Tests/VehicleVision.PleasanterTools.Core.Cli.Tests.csproj" />
+    <Project Path="tests/VehicleVision.PleasanterTools.Core.Contracts.Tests/VehicleVision.PleasanterTools.Core.Contracts.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Data.Tests/VehicleVision.PleasanterTools.Core.Data.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Mail.Tests/VehicleVision.PleasanterTools.Core.Mail.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Web.Tests/VehicleVision.PleasanterTools.Core.Web.Tests.csproj" />
