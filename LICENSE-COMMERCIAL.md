@@ -48,10 +48,14 @@ Copyright (C) PMC Co., Ltd. IT Solution Div.
 **当社のアプリケーションの商用契約を結んだ方には、そのアプリケーションに組み込まれた本ソフトウェアを、
 そのアプリケーションと同じ条件で提供します。** 条件は、各アプリケーションの `LICENSE-COMMERCIAL.md` と契約書によります。
 
+本ソフトウェアは、当社の共通部品 DotNetClient（LGPL・AGPL・商用のトリプルライセンス。著作権者は当社）にも組み込まれて使われます。
+**DotNetClient に組み込まれた本ソフトウェアは、DotNetClient と一体として扱い、DotNetClient の利用条件（LGPL・AGPL・商用のうち選んだもの）で提供します。**
+DotNetClient がさらに当社のアプリケーションへ組み込まれる場合は、そのアプリケーションと一体として扱います。
+
 次の場合は、個別に契約します。
 
 - 本ソフトウェアを単体で利用する場合
-- 当社のアプリケーション以外へ組み込む場合
+- 当社のアプリケーション以外へ組み込む場合（DotNetClient に組み込まれていても、同じです）
 <!-- license:end core-terms -->
 
 <!-- license:begin dotnetclient-terms=off -->

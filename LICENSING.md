@@ -119,6 +119,14 @@ Microsoft 独自の許諾です。
 当社のアプリケーションの商用ライセンス（B）の契約を結んだ方には、そのアプリケーションに組み込まれた本ソフトウェアを、
 そのアプリケーションと同じ条件で提供します。
 本ソフトウェアを単体で利用する場合と、当社のアプリケーション以外へ組み込む場合は、個別に契約します。
+
+#### 当社の共通部品 DotNetClient に組み込まれた場合
+
+本ソフトウェアは、当社の共通部品 DotNetClient（`VehicleVision.PleasanterTools.DotNetClient` の NuGet パッケージ）にも組み込まれて使われます。
+DotNetClient は LGPL-3.0-or-later・AGPL-3.0-or-later・商用ライセンスのトリプルライセンスで、著作権者は当社です。
+**DotNetClient に組み込まれた本ソフトウェアは、DotNetClient と一体として扱い、DotNetClient の利用条件（LGPL・AGPL・商用のうち選んだもの）で提供します。**
+DotNetClient がさらに当社のアプリケーションへ組み込まれる場合は、そのアプリケーションと一体として扱います。
+本ソフトウェアを単体で利用する場合と、当社のアプリケーション以外へ組み込む場合は、DotNetClient に組み込まれていても、上のとおり個別に契約します。
 <!-- license:end core -->
 
 <!-- license:begin dotnetclient=off -->
