@@ -743,6 +743,36 @@ public static class CliApplication
 別パッケージ **`Core.Cli.Testing`** として出す（先例は `Core.Web.Testing`）。`Core.Data` の `MigrationCommand` の文言・終了コードの
 ずれも、この契約テストで検出する（U12）。
 
+**契約テストの形（実装済み。`src/VehicleVision.PleasanterTools.Core.Cli.Testing`、Core#174）**:
+各ツールは、抽象クラス `CliContractTests` を継承し、検査する CLI の定義 `CliContract` を返す。
+`CliContract` は、1 回の実行の入口（`CliRunner`。`CliApplication` を使うなら `CliContract.RunnerFor(tool, handlers)`）、
+`ToolSpec`（省略可）、ツール固有のシナリオ（`CliScenario`）、引数の書式の同値（`CliArgumentForms`）、旧名の検出の設定、既知の違反を持つ。
+`ToolSpec` を渡すと、ヘルプ（4 つの形・コマンドごと）、`--version`（`--json` を含む）、使い方の誤り（引数なし・未知のコマンド・未知のオプション・
+値に秘密を含む場合・`--json` つき）のシナリオを定義から作る。`ToolSpec` を持たないもの（`MigrationCommand` など、Web アプリの起動引数）は、
+シナリオだけを検査する。
+
+| 規則 | 確かめること（根拠） |
+|---|---|
+| Ascii | stdout・stderr がすべて ASCII（2.1） |
+| Streams | `[ERROR]`・`[WARN]` が stdout に、`[OK]`・`[INFO]` が stderr に出ていない。使い方の誤りで stdout が空（2.2・2.3） |
+| Prefixes | 失敗・使い方の誤りで stderr に `[ERROR]`。成功の要約（シナリオが指定したとき）に `[OK]`（2.3） |
+| ExitCodes | 終了コードが 0・1・2・3・130 のどれかで、シナリオの結末（成功 0、検査の失敗 1、実行時の失敗 1、使い方の誤り 2、一部だけ完了 3、中断 130）と一致。例外が漏れない（4 章） |
+| Json | `--json` の stdout が 1 行の JSON だけ。枠の項目と順序、`ok` と `exitCode` の整合、`errors`・`warnings` の要素の形、固有の項目の名前（3 章） |
+| Help・Version | ヘルプが stdout に出て終了コード 0。`--version` が `ツール名 バージョン` の 1 行。`--version --json` の枠（5.3、U15） |
+| LegacyEnvironment | 旧名だけ、旧名と新名の両方が設定されたとき、終了コード 2 と案内の `[ERROR]`。値を出さない（6.1、U11・N2） |
+| Secrets | シナリオが指定した秘密が、出力のどこにも出ない（2.1） |
+| ArgumentForms | `--名前=値`・`--名前 値` など、同じ意味の書式が同じ終了コードと stdout になる（5.1） |
+
+- 検査の失敗（`validate` で問題あり）は、結果なので `[ERROR]` を要求しない（`CliOutcome.CheckFailed`）。
+  引数なしで出す短い使い方も、接頭辞を付けない決まりなので要求しない
+- **既知の違反**（`KnownViolation`: 規則・場面・理由・Issue）は、直す Issue があるずれを、「検出されること」を固定して一覧にする。
+  一覧にない違反は失敗。一覧にあるのに検出されなくなったものも失敗にし、一覧から外すよう促す。
+  `MigrationCommand` のずれは、Core#175 で直すまでこの一覧に入れる（`tests/VehicleVision.PleasanterTools.Core.Data.Tests/MigrationCommandContractTests.cs`）
+- 契約が働くことは、わざと違反させた偽のツール（ASCII でない出力・stdout と stderr の取り違え・誤った終了コード・JSON 以外の混入・秘密など）を
+  検出するテストで示す（`tests/VehicleVision.PleasanterTools.Core.Cli.Tests`）
+- 契約では確かめないもの: 進行表示が stderr か（どの行が進行かを、部品が知らない）、中断（130）の安全な止め方、`--yes` の確認の流れ（ツールごとのテスト）
+- `Core.Cli.Testing` は、`Core.Web.Testing` と同様、xUnit を参照する。公開（nuget.org）は Core#177 の承認後
+
 補完（決定、U1）のテストは、生成物の文字列を固定するテストに加え、可能なら実際のシェル（PowerShell・bash・zsh）での
 候補の確認を CI で行う（手間が最大。5.5）。**決定（Core#173）**: CI は Linux の bash と PowerShell だけ（`ci.yml` の `build-test` が
 `CLI_COMPLETION_REQUIRE_SHELLS=1` で、実機の試験が黙って飛ばされないようにする）。zsh・Windows・macOS は手元の確認。`名前:値` とドライブ文字（`--out:C:\x`）、`--version`、`--yes`/`-y`、
@@ -1009,6 +1039,7 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 | `API_KEY_FILE` を読む共通の部品 | ファイルと環境変数の優先順・空白と改行の扱い・読めないときのエラー（決定、N4。細部は実装の Issue） |
 | DotNetClient の旧名の検出の持ち方 | 解消。DotNetClient は `Core.Contracts` だけを参照し、対応表（`PleasanterEnvironmentNames.Legacy`）を共有する。検出の処理は DotNetClient 側に書く（Core#181。適用は DotNetClient の Issue） |
 | 旧名の対応表の実装 | `PleasanterEnvironmentNames.Legacy` の中身は、6.2 の表を元にする |
+| 契約テストの範囲 | **解消**（Core#174）。規則は 5.7 の表。`MigrationCommand` のずれは「既知の違反」として固定し、Core#175 で直したら外す。`MigrationCommand` の `--migrate-status`（未適用あり=1）は、暫定で「検査の失敗」の 1 として扱っている（4 章との照合は #175 で確認） |
 
 ### 9.5 公開範囲の確認
 
