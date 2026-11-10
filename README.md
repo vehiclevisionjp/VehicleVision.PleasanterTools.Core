@@ -10,7 +10,9 @@ PleasanterTools は、ノーコード／ローコード業務基盤 [Pleasanter]
 **「孫の手」として当社が作っているツール群**です。
 運営: 株式会社ピー・エム・シー ITソリューション事業部 / PMC Co., Ltd. IT Solution Div.
 Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[Core.Web][nuget-web]・
-[Core.Web.Testing][nuget-testing] を nuget.org で公開しています（安定版 0.1.0。1.0.0 未満のため互換は保証しません）。
+[Core.Contracts][nuget-contracts]・[Core.Cli][nuget-cli] と、試験用の
+[Core.Web.Testing][nuget-testing]・[Core.Cli.Testing][nuget-cli-testing] を nuget.org で公開しています
+（安定版 0.2.0。1.0.0 未満のため互換は保証しません）。
 
 ### ファミリーの一覧
 
@@ -32,7 +34,7 @@ Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[C
 | [DotNetClient][repo-dotnetclient] | Pleasanter の標準 Web API を呼ぶ .NET クライアント | ライブラリ | LGPL | 開発中 | なし |
 | [FeedIngest][repo-feedingest] | RSS / Atom を取り込み、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
 | [MailIngest][repo-mailingest] | POP3 / IMAP のメールを取り込み、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
-| [Core][repo-core] | 各ツールの DB・メール・Web・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.1.0 | 提供元 |
+| [Core][repo-core] | 各ツールの DB・メール・Web・CLI・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.2.0 | 提供元 |
 | Template（社内テンプレート） | 新しいツールのひな形と共通の開発運用を提供 | ツール | AGPL | 開発中（社内用） | なし |
 
 ### 名前の付け方
@@ -72,7 +74,10 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
 | `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表 |
+| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名と旧名の対応）。定数と読み取り専用の対応表だけで、処理を持たない |
+| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・旧名の検出・シェル補完）。[CLI の共通仕様書][cli-spec] |
 | `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は 0.1.0 に含まれる。追加の安全性契約は未公開 |
+| `VehicleVision.PleasanterTools.Core.Cli.Testing` | 試験用。CLI の契約テストの xUnit 基底クラス（ヘルプ・エラーの ASCII、結果の出力先、終了コード表など）。各ツールが自分のテストで回す |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
 
@@ -170,27 +175,33 @@ TOTP の不正な入力・共有鍵は不一致です。同じ時間枠の再使
 
 ## 配布と参照（nuget.org）
 
-nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data` / `.Web` / `.Web.Testing`）。
+nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.` で始まるパッケージ。一覧は上の「パッケージ」）。
 **認証なしで取得できる**ので、参照するリポジトリは、`PackageReference` を書くだけです
 （`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0" />
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.2.0" />
 ```
 
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`][release-guide]
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
-- **安定版 0.1.0 を 2026-10-30 に公開しました**（タグ `v0.1.0`。当時のパッケージはすべて同じ版）。
+- **安定版 0.2.0 を 2026-11-11 に公開しました**（タグ `v0.2.0`。パッケージはすべて同じ版。
+  Contracts・Cli・Cli.Testing は 0.2.0 が初めての公開）。
+  その前の安定版 0.1.0 は 2026-10-30 に公開しました（タグ `v0.1.0`。当時のパッケージはすべて同じ版）。
   プレビュー版は、Mail・Data が preview.2〜15、Web が preview.10〜15、Web.Testing が preview.11〜15 です
 - 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）
-- 2026-10-30 に各パッケージの版一覧を確認しました。
-  [Mail][mail-versions] / [Data][data-versions] / [Web][web-versions] / [Web.Testing][testing-versions]
+- 各パッケージの版一覧は nuget.org で確認できます。
+  [Mail][mail-versions] / [Data][data-versions] / [Web][web-versions] / [Web.Testing][testing-versions] /
+  [Contracts][contracts-versions] / [Cli][cli-versions] / [Cli.Testing][cli-testing-versions]
 
 [mail-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.mail/index.json
 [data-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.data/index.json
 [web-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web/index.json
 [testing-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web.testing/index.json
+[contracts-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.contracts/index.json
+[cli-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.cli/index.json
+[cli-testing-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.cli.testing/index.json
 
 ## バージョン
 
@@ -249,11 +260,15 @@ dotnet test
 [nuget-mail]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Mail
 [nuget-web]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Web
 [nuget-testing]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Web.Testing
+[nuget-contracts]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Contracts
+[nuget-cli]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Cli
+[nuget-cli-testing]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Cli.Testing
 [family-operations]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/ファミリーの共通運用の情報.md
 [branch-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/ブランチ運用方針.md
 [release-guide]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/リリース手順書.md
 [admin-spec]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/管理画面の共通仕様書.md
 [contract-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/管理画面の共通仕様/契約テストの方針.md
+[cli-spec]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/CLIの共通仕様書.md
 [core-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/コア化の方針.md
 [web-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/Core.Web-共通化の方針.md
 [contributing]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/CONTRIBUTING.md
