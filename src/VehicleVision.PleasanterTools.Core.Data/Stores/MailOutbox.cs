@@ -296,7 +296,7 @@ internal static class MailOutboxSql
             "WHERE `Status` = @PendingStatus AND `NextAttemptAt` <= @Now " +
             "ORDER BY `NextAttemptAt` LIMIT 1",
 
-        _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+        _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
     };
 
     /// <summary>MySQL で確保した行を、確保ごとに一意な <c>LockedBy</c> で読み直す。</summary>

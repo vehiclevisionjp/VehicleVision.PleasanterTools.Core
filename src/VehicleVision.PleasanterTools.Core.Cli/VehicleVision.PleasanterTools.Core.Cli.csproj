@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Cli</PackageId>
+    <Description>VehicleVision.PleasanterTools 各 CLI 共通の部品（引数の解析・ヘルプ・エラー・終了コード・Ctrl+C・実行の入口）。BCL だけに依存する。</Description>
+    <PackageTags>pleasanter;vehiclevision;cli;command-line;argument-parser</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleVision.PleasanterTools.Core.Contracts\VehicleVision.PleasanterTools.Core.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VehicleVision.PleasanterTools.Core.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

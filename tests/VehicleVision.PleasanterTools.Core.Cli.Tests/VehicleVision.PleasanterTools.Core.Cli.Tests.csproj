@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 生成物の文字列を固定する期待値 -->
+    <None Include="Golden\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Cli\VehicleVision.PleasanterTools.Core.Cli.csproj" />
+    <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Cli.Testing\VehicleVision.PleasanterTools.Core.Cli.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

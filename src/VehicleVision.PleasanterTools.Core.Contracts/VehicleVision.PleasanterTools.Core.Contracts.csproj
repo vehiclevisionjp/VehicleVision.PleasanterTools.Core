@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Contracts</PackageId>
+    <Description>VehicleVision.PleasanterTools 各ツール・ライブラリが共有する名前と値（環境変数名・--json の枠のキー名・エラーコード名・終了コードの値）。定数と読み取り専用の対応表だけで、処理を持たない。BCL だけに依存する。</Description>
+    <PackageTags>pleasanter;vehiclevision;contracts;constants</PackageTags>
+  </PropertyGroup>
+
+</Project>

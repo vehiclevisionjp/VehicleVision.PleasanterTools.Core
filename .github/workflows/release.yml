@@ -1,4 +1,6 @@
 # タグ vX.Y.Z で nuget.org へ公開する。
+# 手動実行（workflow_dispatch）は dry-run。ビルド・テスト・パックと、パッケージの集合・版・メタデータ・依存の検査までで、
+# タグも OIDC ログインも push もしない（公開前に、ブランチ指定で回す。_documents/リリース手順書.md「公開前の確認」）。
 # 手順は _documents/リリース手順書.md。
 #
 # 認証は Trusted Publishing（GitHub Actions の OIDC）。**長期の API キーは持たない。**
@@ -19,6 +21,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "dry-run で梱包する版（例: 0.2.0 / 0.2.0-preview.1）。空なら VersionPrefix。合わないときは警告（公開のときは合うこと）"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -33,6 +41,8 @@ env:
 jobs:
   publish:
     name: publish-nuget
+    # タグの push のときだけ公開する。手動実行は下の dry-run だけ
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -67,6 +77,10 @@ jobs:
       - run: dotnet test -c Release --no-build
       - run: dotnet pack -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o artifacts
 
+      - name: パッケージの集合・版・メタデータ・依存を検査する
+        # 足りない・余計なパッケージ、版の食い違いがあれば、push の前に止める
+        run: bash ./scripts/verify-packages.sh artifacts "${GITHUB_REF_NAME#v}"
+
       - name: NuGet のユーザー名が設定されているか
         env:
           NUGET_ORG_USER: ${{ vars.NUGET_ORG_USER }}
@@ -90,3 +104,67 @@ jobs:
           --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
           --source "https://api.nuget.org/v3/index.json"
           --skip-duplicate
+
+  dry-run:
+    # 公開しない。タグ・OIDC ログイン・push を行わない（id-token も渡さない）
+    name: dry-run
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: 版を決めて検証する
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          prefix=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' Directory.Build.props)
+          version="${INPUT_VERSION:-$prefix}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$'; then
+            echo "::error::版の形が不正: $version（例: 0.2.0 / 0.2.0-preview.1）"
+            exit 1
+          fi
+          case "$version" in
+            "$prefix"|"$prefix"-*) ;;
+            # 版を上げる PR の前にも回せるよう、dry-run では警告にとどめる（実際の公開は、タグの検査で失敗する）
+            *) echo "::warning title=VersionPrefix と合いません::版($version)が VersionPrefix($prefix) と合わない。実際の公開は、VersionPrefix を上げてから" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dry-run の版: $version"
+
+      - name: コミットが master に含まれるか（参考。dry-run では失敗にしない）
+        run: |
+          git fetch origin master
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "このコミットは master に含まれる"
+          else
+            echo "::notice title=master に含まれないコミットです::実際の公開は master の HEAD にタグを打つこと"
+          fi
+
+      - run: dotnet build -c Release
+      - run: dotnet test -c Release --no-build
+        env:
+          CLI_COMPLETION_REQUIRE_SHELLS: "1"
+      - run: dotnet pack -c Release --no-build -p:Version=${{ steps.version.outputs.version }} -o artifacts
+
+      - name: パッケージの集合・版・メタデータ・依存を検査する
+        run: bash ./scripts/verify-packages.sh artifacts "${{ steps.version.outputs.version }}"
+
+      - name: 結果の要約
+        run: |
+          {
+            echo "## dry-run の結果（公開していません）"
+            echo
+            echo "版: \`${{ steps.version.outputs.version }}\`"
+            echo
+            ls -1 artifacts/*.nupkg | sed 's|^artifacts/|- |'
+          } >> "$GITHUB_STEP_SUMMARY"

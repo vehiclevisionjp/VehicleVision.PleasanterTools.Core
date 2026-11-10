@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Cli.Testing</PackageId>
+    <Description>VehicleVision.PleasanterTools 各 CLI が自分のテストで回す、CLI の契約テスト（ASCII・stdout と stderr・終了コード・--json の枠・旧名の検出・秘密）。xUnit の共有テスト。</Description>
+    <PackageTags>pleasanter;vehiclevision;testing;xunit;cli;command-line</PackageTags>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleVision.PleasanterTools.Core.Cli\VehicleVision.PleasanterTools.Core.Cli.csproj" />
+    <ProjectReference Include="..\VehicleVision.PleasanterTools.Core.Contracts\VehicleVision.PleasanterTools.Core.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

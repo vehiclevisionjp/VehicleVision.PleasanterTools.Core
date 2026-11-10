@@ -45,7 +45,7 @@ public static class DatabaseConnectionString
 
         if (provider is not DatabaseProvider.Sqlite)
         {
-            throw new InvalidOperationException($"{settingName} が設定されていない");
+            throw new InvalidOperationException($"The setting {settingName} is not configured.");
         }
 
         var appDataPath = Path.Combine(contentRootPath, "App_Data");
@@ -106,7 +106,7 @@ public sealed class DbConnectionFactory : IDbConnectionFactory
         DatabaseProvider.PostgreSql => new NpgsqlConnection(_connectionString),
         DatabaseProvider.MySql => new MySqlConnection(_connectionString),
         DatabaseProvider.Sqlite => CreateSqliteConnection(),
-        _ => throw new NotSupportedException($"対応していない RDBMS: {Provider}"),
+        _ => throw new NotSupportedException($"Unsupported database provider: {Provider}"),
     };
 
     /// <summary>SQLite の待機時間を接続文字列へ強制する。</summary>

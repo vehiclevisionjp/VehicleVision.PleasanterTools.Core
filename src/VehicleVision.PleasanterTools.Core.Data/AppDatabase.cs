@@ -76,7 +76,7 @@ public sealed partial class AppDatabase
         if (!AppIdPattern().IsMatch(appId))
         {
             throw new ArgumentException(
-                $"アプリ ID '{appId}' は使えません。小文字の英字で始まり、小文字の英数字とハイフン（連続しない）だけで書くこと（例: questionnaire）。",
+                $"The app ID '{appId}' is not allowed. Start with a lowercase letter and use only lowercase letters, digits and non-consecutive hyphens (for example: questionnaire).",
                 nameof(appId));
         }
 
@@ -129,8 +129,8 @@ public sealed partial class AppDatabase
             && Enum.IsDefined(provider)
             ? provider
             : throw new InvalidOperationException(
-                $"{ProviderSetting} の値 '{value}' は対応していません。"
-                + $"{string.Join(" / ", Enum.GetNames<DatabaseProvider>())} のいずれかで指定してください。");
+                $"The value '{value}' of {ProviderSetting} is not supported. "
+                + $"Specify one of: {string.Join(" / ", Enum.GetNames<DatabaseProvider>())}.");
     }
 
     /// <summary>接続文字列を解決する。SQLite だけは、<c>App_Data</c> 配下の既定のファイルを使う。</summary>

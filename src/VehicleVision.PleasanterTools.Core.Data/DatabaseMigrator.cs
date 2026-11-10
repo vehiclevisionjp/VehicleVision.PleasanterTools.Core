@@ -200,7 +200,7 @@ public sealed class DatabaseMigrator
                     DatabaseProvider.PostgreSql => builder.AddPostgres(),
                     DatabaseProvider.MySql => builder.AddMySql8(),
                     DatabaseProvider.Sqlite => builder.AddSQLite(),
-                    _ => throw new NotSupportedException($"対応していない RDBMS: {provider}"),
+                    _ => throw new NotSupportedException($"Unsupported database provider: {provider}"),
                 };
 
                 configured

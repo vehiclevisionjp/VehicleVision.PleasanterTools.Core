@@ -1,11 +1,16 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/VehicleVision.PleasanterTools.Core.Cli/VehicleVision.PleasanterTools.Core.Cli.csproj" />
+    <Project Path="src/VehicleVision.PleasanterTools.Core.Cli.Testing/VehicleVision.PleasanterTools.Core.Cli.Testing.csproj" />
+    <Project Path="src/VehicleVision.PleasanterTools.Core.Contracts/VehicleVision.PleasanterTools.Core.Contracts.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Data/VehicleVision.PleasanterTools.Core.Data.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Mail/VehicleVision.PleasanterTools.Core.Mail.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Web/VehicleVision.PleasanterTools.Core.Web.csproj" />
     <Project Path="src/VehicleVision.PleasanterTools.Core.Web.Testing/VehicleVision.PleasanterTools.Core.Web.Testing.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/VehicleVision.PleasanterTools.Core.Cli.Tests/VehicleVision.PleasanterTools.Core.Cli.Tests.csproj" />
+    <Project Path="tests/VehicleVision.PleasanterTools.Core.Contracts.Tests/VehicleVision.PleasanterTools.Core.Contracts.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Data.Tests/VehicleVision.PleasanterTools.Core.Data.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Mail.Tests/VehicleVision.PleasanterTools.Core.Mail.Tests.csproj" />
     <Project Path="tests/VehicleVision.PleasanterTools.Core.Web.Tests/VehicleVision.PleasanterTools.Core.Web.Tests.csproj" />

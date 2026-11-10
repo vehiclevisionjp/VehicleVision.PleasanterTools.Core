@@ -4,7 +4,6 @@ using Microsoft.Data.Sqlite;
 namespace VehicleVision.PleasanterTools.Core.Data.Tests;
 
 /// <summary>アプリの合図・再適用の試験を移植し、状態と出力の契約を追加。</summary>
-[Collection("MigrationCommand console")]
 public sealed class MigrationCommandTests : IDisposable
 {
     private readonly string file = Path.Combine(Path.GetTempPath(), $"core-migrate-{Guid.NewGuid():N}.db");
@@ -27,23 +26,12 @@ public sealed class MigrationCommandTests : IDisposable
     private async Task<(int Code, string Output, string Error)> Run(
         string[] args, string? connection = null, TimeSpan? lockTimeout = null, CancellationToken cancellationToken = default)
     {
-        var output = Console.Out;
-        var error = Console.Error;
         using var capturedOutput = new StringWriter(CultureInfo.InvariantCulture);
         using var capturedError = new StringWriter(CultureInfo.InvariantCulture);
-        try
-        {
-            Console.SetOut(capturedOutput);
-            Console.SetError(capturedError);
-            var code = await MigrationCommand.RunAsync(
-                migrator, DatabaseProvider.Sqlite, connection ?? Connection, args, lockTimeout, cancellationToken);
-            return (code, capturedOutput.ToString(), capturedError.ToString());
-        }
-        finally
-        {
-            Console.SetOut(output);
-            Console.SetError(error);
-        }
+        var code = await MigrationCommand.RunAsync(
+            migrator, DatabaseProvider.Sqlite, connection ?? Connection, args, lockTimeout, cancellationToken,
+            capturedOutput, capturedError);
+        return (code, capturedOutput.ToString(), capturedError.ToString());
     }
 
     [Fact]
@@ -72,13 +60,13 @@ public sealed class MigrationCommandTests : IDisposable
         Assert.Equal(0, applied.Code);
         Assert.Equal("Pending migrations (Sqlite):" + Environment.NewLine
             + string.Concat(pending.Select(name => $"  - {name}{Environment.NewLine}"))
-            + $"Applied {pending.Count} migration(s).{Environment.NewLine}", applied.Output);
+            + $"[OK] Applied {pending.Count} migration(s).{Environment.NewLine}", applied.Output);
         Assert.Empty(applied.Error);
         foreach (var arg in new[] { "--migrate", "--migrate-status" })
         {
             var again = await Run([arg]);
             Assert.Equal(0, again.Code);
-            Assert.Equal($"All migrations are applied (Sqlite).{Environment.NewLine}", again.Output);
+            Assert.Equal($"[OK] All migrations are applied (Sqlite).{Environment.NewLine}", again.Output);
             Assert.Empty(again.Error);
         }
         using var db = new SqliteConnection(Connection);
@@ -104,7 +92,7 @@ public sealed class MigrationCommandTests : IDisposable
     {
         var result = await Run(["--migrate-status", wait]);
         Assert.Equal(1, result.Code);
-        Assert.DoesNotContain("Waiting", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("Waiting", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -112,17 +100,50 @@ public sealed class MigrationCommandTests : IDisposable
     {
         var result = await Run(["--migrate-status", "--wait-for-db=1", "--wait-for-db=9"]);
         Assert.Equal(1, result.Code);
-        Assert.StartsWith($"Waiting for the database (up to 1s)...{Environment.NewLine}", result.Output);
+        Assert.StartsWith($"Waiting for the database (up to 1s)...{Environment.NewLine}", result.Error);
+        Assert.DoesNotContain("Waiting", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("--wait-for-db=2")]
+    [InlineData("--wait-for-db:2")]
+    public async Task 待機秒数は等号とコロンの書式も受ける(string arg)
+    {
+        var result = await Run(["--migrate-status", arg]);
+        Assert.StartsWith($"Waiting for the database (up to 2s)...{Environment.NewLine}", result.Error);
     }
 
     [Fact]
-    public async Task 繋がらないDBは終了コード2と標準エラー()
+    public async Task 待機秒数は空白区切りも受ける()
+    {
+        var result = await Run(["--migrate-status", "--wait-for-db", "3"]);
+        Assert.StartsWith($"Waiting for the database (up to 3s)...{Environment.NewLine}", result.Error);
+    }
+
+    [Theory]
+    [InlineData("--wait-for-db")]
+    [InlineData("--wait-for-db:")]
+    [InlineData("--wait-for-dbx=3")]
+    public async Task 値の無い待機の指定は待たない(string arg)
+    {
+        var result = await Run(["--migrate-status", arg]);
+        Assert.Empty(result.Error);
+    }
+
+    [Fact]
+    public async Task 繋がらないDBは終了コード1と標準エラーのERROR()
     {
         // 外部 DB へは接続せず、存在しないファイルを読み取り専用で開く。
         var result = await Run(["--migrate", "--wait-for-db=1"], Connection + ";Mode=ReadOnly");
-        Assert.Equal(2, result.Code);
-        Assert.Equal($"Waiting for the database (up to 1s)...{Environment.NewLine}", result.Output);
-        Assert.StartsWith("Database not reachable after 1s: ", result.Error);
+        Assert.Equal(1, result.Code);
+        Assert.Empty(result.Output);
+        // ドライバーの例外メッセージ（接続文字列やファイルのパスを含み得る）は出さず、固定の文言と例外の型名だけを出す
+        var lines = result.Error.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        Assert.Equal("Waiting for the database (up to 1s)...", lines[0]);
+        Assert.Matches(@"^\[ERROR\] Database not reachable after 1s \([A-Za-z0-9_`]+\)\.$", lines[1]);
+        Assert.DoesNotContain(file, result.Error, StringComparison.Ordinal);
+        Assert.All(result.Error, character => Assert.True(character is >= ' ' and <= '~' or (char)13 or (char)10));
         Assert.False(File.Exists(file));
     }
 
@@ -151,6 +172,3 @@ public sealed class MigrationCommandTests : IDisposable
         File.Delete(file + ".migration-lock.sqlite");
     }
 }
-
-[CollectionDefinition("MigrationCommand console", DisableParallelization = true)]
-public sealed class MigrationCommandConsoleCollection;

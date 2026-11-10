@@ -40,6 +40,10 @@ jobs:
           global-json-file: global.json
       - run: dotnet build -c Release
       - run: dotnet test -c Release --no-build
+        env:
+          # Core.Cli の補完を、実際の bash・PowerShell（ubuntu-latest に入っている）で確かめる試験が走る。
+          # 見つからないときに黙って緑にならないよう、必須にする。zsh・Windows・macOS は CI に入れない
+          CLI_COMPLETION_REQUIRE_SHELLS: "1"
       # 配布できる形になっているかを、公開しなくても確かめる
       - run: dotnet pack -c Release --no-build -o artifacts
 
