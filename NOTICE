@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PMC-Commercial
   FluentMigrator.Runner.Postgres 8.0.1 / Apache-2.0
   FluentMigrator.Runner.MySql 8.0.1 / Apache-2.0
   FluentMigrator.Runner.SQLite 8.0.1 / Apache-2.0 / https://www.nuget.org/packages/FluentMigrator.Runner.SQLite/8.0.1
-  Microsoft.Data.Sqlite 10.0.14 / MIT / https://www.nuget.org/packages/Microsoft.Data.Sqlite/10.0.12
+  Microsoft.Data.Sqlite 10.0.15 / MIT / https://www.nuget.org/packages/Microsoft.Data.Sqlite/10.0.12
     （Apache-2.0 の SQLitePCLRaw と、パブリックドメインの SQLite を推移的に伴う。
       https://github.com/ericsink/SQLitePCL.raw）
   Microsoft.Data.SqlClient 7.1.1 / MIT / https://www.nuget.org/packages/Microsoft.Data.SqlClient
@@ -43,12 +43,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PMC-Commercial
       LICENSE-COMMERCIAL.md の「頒布先に守っていただく条件」に書いてある。Core 側の案内は LICENSING.md の同名の節）
   Npgsql 10.0.3 / PostgreSQL License（BSD 系の寛容ライセンス） / https://www.nuget.org/packages/Npgsql
   MySqlConnector 2.6.2 / MIT / https://www.nuget.org/packages/MySqlConnector
-  Microsoft.Extensions.DependencyInjection 10.0.14 / MIT
-  Microsoft.Extensions.Configuration.Abstractions 10.0.14 / MIT
-  Microsoft.Extensions.Logging.Abstractions 10.0.14 / MIT
+  Microsoft.Extensions.DependencyInjection 10.0.15 / MIT
+  Microsoft.Extensions.Configuration.Abstractions 10.0.15 / MIT
+  Microsoft.Extensions.Logging.Abstractions 10.0.15 / MIT
   MailKit 4.18.2 / MIT / https://github.com/jstedfast/MailKit
     （メールの送信。MimeKit と BouncyCastle.Cryptography（いずれも MIT）を推移的に伴う）
-  System.Security.Cryptography.Pkcs 10.0.14 / MIT / https://www.nuget.org/packages/System.Security.Cryptography.Pkcs
+  System.Security.Cryptography.Pkcs 10.0.15 / MIT / https://www.nuget.org/packages/System.Security.Cryptography.Pkcs
     （MimeKit・Microsoft.Data.SqlClient が推移的に伴う。脆弱性の修正版へ固定している）
   AWSSDK.SimpleEmailV2 4.0.106.7 / Apache-2.0 / https://github.com/aws/aws-sdk-net
     （Amazon SES の送信経路。IAM ロールで通るので、保管する秘密が 0 になる）
@@ -69,9 +69,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PMC-Commercial
 試験の実行にだけ使うもの（成果物には入らない）
 
   xunit.runner.visualstudio 4.0.1 / Apache-2.0
-  Microsoft.NET.Test.Sdk 18.11.0 / MIT
+  Microsoft.NET.Test.Sdk 18.11.1 / MIT
   coverlet.collector 10.1.0 / MIT
-  Microsoft.Extensions.Configuration 10.0.14 / MIT
+  Microsoft.Extensions.Configuration 10.0.15 / MIT
     （設定の読み取りを試すのに使う）
   Microsoft.Extensions.TimeProvider.Testing 10.11.0 / MIT / https://www.nuget.org/packages/Microsoft.Extensions.TimeProvider.Testing/10.11.0
     （時間切れを実時間で待たずに試すのに使う。ライセンスはパッケージの nuspec の license 式、参照日 2026-10-22。
