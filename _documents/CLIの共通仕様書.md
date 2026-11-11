@@ -18,6 +18,9 @@ VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共
 **2026-11-09 に、未決だった U1〜U18 と、そこから出た N1〜N6 へユーザーが回答した。回答を「決定」として本文へ移し、9.3 に一覧を残した。
 質問としての未決は無い（9 章。Core#176 で見つかった 9.6 の Q1〜Q5 は、2026-11-09 に回答があり、決定にした）。**
 共通の環境変数の接頭辞は、Q7 の「共通は `PLEASANTER_`」を、ユーザーが `VVPT_PLEASANTER_*` へ変更した（6 章）。
+**2026-11-11 に、環境変数の「旧名のフォロー」（旧名の検出・案内・終了コード 2）を全部やめることを
+ユーザーが決めた（Core#197）。旧名だけ設定された環境は、新名が未設定として普通に失敗するだけで、
+旧名の専用の検出・案内は無い。U11・N2・N4 の旧名の検出の部分は、この決定で取り消された（9.3）。**
 
 ## 1. 範囲と前提
 
@@ -64,14 +67,14 @@ VehicleVision.PleasanterTools の**コマンドラインツール（CLI）が共
 | Q5 | 終了コード 0 / 1 / 2 / 3 / 130。想定外の例外は 1 にして `[ERROR]` を出す。`validate`・`plan` の終了コードが変わるツールがあり、適用の Issue で影響を書く | 4 |
 | Q6 | 引数の解析は Core の自作の共通部品。`System.CommandLine` は使わない。`/名前` を `--名前` へ正規化する。3 重実装を置き換える。ヘルプ・エラーの文言（ASCII）・補完は自作 | 5 |
 | 書式 | `--名前`・`-名前`・`/名前` の 3 つ。既知の名前のときだけオプション。1 文字の短縮形は定義したものだけで `-abc` の結合なし。`名前 値` と `--名前=値`。ヘルプは `--help`・`-h`・`-?`・`/?`。大文字小文字は区別しない（U2） | 5 |
-| Q7 | 環境変数は `ツール名_` の接頭辞。既存も一斉に移行し、**旧名は受け付けない**（破壊的変更）。適用の Issue ごとに対応表・移行手順・リリースノートを書く。**ツール間で共通のものは、当初 `PLEASANTER_` だったが、2026-11-09 にユーザーが `VVPT_PLEASANTER_*` へ変更した** | 6 |
+| Q7 | 環境変数は `ツール名_` の接頭辞。既存も一斉に移行し、**旧名は受け付けない**（検出も案内もしない。破壊的変更）。適用の Issue ごとに対応表・移行手順・リリースノートを書く。**ツール間で共通のものは、当初 `PLEASANTER_` だったが、2026-11-09 にユーザーが `VVPT_PLEASANTER_*` へ変更した** | 6 |
 
 ### 1.3.1 Core の規約と、製品群で共通の値
 
 Core の規約は「**アプリ固有の値**（アプリ名・環境変数の接頭辞・ファイル名・ロック名など）を Core に書かない」で、
 呼び出し側が引数で渡す。**製品群で共通の値は、この規約の対象外**で、新しいパッケージ `Core.Contracts` に置く（決定、N6。置き場は Core#181）。
 `Core.Contracts` は、定数と読み取り専用の対応表だけを持ち、処理を持たない。
-この文書では、共通の環境変数 `VVPT_PLEASANTER_*` とその旧名の対応・`--json` の枠のキー名・共通のエラーコード名・終了コードの値が該当する（3 章、4 章、5.6、6 章）。
+この文書では、共通の環境変数 `VVPT_PLEASANTER_*` ・`--json` の枠のキー名・共通のエラーコード名・終了コードの値が該当する（3 章、4 章、5.6、6 章）。
 ツール名・ツール固有の接頭辞（`MAILINGEST_` など）は、従来どおりアプリ固有の値で、Core に書かない。
 
 ### 1.4 公開範囲についての注意
@@ -583,7 +586,7 @@ public static class CompletionCommand
 }
 
 /// <summary>
-/// 製品群で共通の環境変数の名前と旧名の対応（決定: N6）。アプリ固有の値ではないので Core.Contracts が持つ。
+/// 製品群で共通の環境変数の名前（決定: N6）。アプリ固有の値ではないので Core.Contracts が持つ。旧名は受け付けず、旧名の対応表も持たない。
 /// </summary>
 public static class PleasanterEnvironmentNames  // Core.Contracts
 {
@@ -592,23 +595,7 @@ public static class PleasanterEnvironmentNames  // Core.Contracts
     public const string ApiKeyFile = "VVPT_PLEASANTER_API_KEY_FILE";
     public const string AllowInsecureHttp = "VVPT_PLEASANTER_ALLOW_INSECURE_HTTP";
     public const string ServerVersion = "VVPT_PLEASANTER_SERVER_VERSION";
-
-    /// <summary>旧名 → 新名。旧名は受け付けない。検出だけに使う。</summary>
-    public static IReadOnlyDictionary<string, string> Legacy { get; }
 }
-
-/// <summary>
-/// 旧名の検出（決定: U11・N2）。旧名が設定されていれば（新名との併用を含む）、
-/// <c>Environment variable X is no longer supported. Use Y.</c> を返す。CLI は [ERROR] と終了コード 2、
-/// ライブラリ（DotNetClient）は例外にする。
-/// </summary>
-public static class LegacyEnvironmentCheck
-{
-    /// <summary>legacy を省略すると PleasanterEnvironmentNames.Legacy。ツール固有の旧名（DBCONV_* など）は、呼び出し側が足して渡す。</summary>
-    public static IReadOnlyList<string> Find(Func<string, string?> getEnvironmentVariable, IReadOnlyDictionary<string, string>? legacy = null);
-
-    /// <summary>旧名が 1 つでもあれば、すべて [ERROR] で出して 2 を返す。無ければ 0。</summary>
-    public static int Report(CliOutput output, Func<string, string?> getEnvironmentVariable, IReadOnlyDictionary<string, string>? legacy = null);
 }
 
 /// <summary>
@@ -758,10 +745,10 @@ public static class CliApplication
 - **決定（U7・U15）**: `--yes`（`-y`）・`--version`・`--json` は `CommonOptions` の共通の定義として Core が持つ
 - **決定（N5）**: `--yes`/`-y` は、確認の質問を持つコマンドだけが宣言する。宣言していないコマンドで指定したら、
   `Unknown option` と同じ使い方の誤り（終了コード 2）にする
-- **決定（N6）**: `VVPT_PLEASANTER_*` の名前と旧名の対応は、Core が公開 API の定数として持つ（`PleasanterEnvironmentNames`）。
-  置き場は `Core.Contracts`（Core#181。BCL だけに依存し、何も参照しない。定数と読み取り専用の対応表だけで、処理を持たない）。
+- **決定（N6）**: `VVPT_PLEASANTER_*` の名前は、Core が公開 API の定数として持つ（`PleasanterEnvironmentNames`）。
+  置き場は `Core.Contracts`（Core#181。BCL だけに依存し、何も参照しない。定数だけで、処理を持たない）。
   `--json` の枠のキー名（`JsonKeys`）・共通のエラーコード名（`ErrorCodes`）・終了コードの値（`ExitCodeValues`）も同じパッケージに置く。
-  旧名の検出（`LegacyEnvironmentCheck`）・`EnvironmentNames`・`PleasanterApiKey`・`ExitCodes.Combine` は処理なので `Core.Cli` に残る。
+  `EnvironmentNames`・`PleasanterApiKey`・`ExitCodes.Combine` は処理なので `Core.Cli` に残る。
   `Core.Cli` は `Core.Contracts` を参照する。**DotNetClient は `Core.Contracts` だけを参照し、`Core.Cli` は参照しない**
   Core の規約（アプリ固有の値を書かない）の対象は、アプリ固有の値で、**製品群で共通の値は対象外**（1.3.1）
 - **決定（N4）**: `API_KEY_FILE` は DotNetClient には足さず、**ツール側が共通の部品で読む**。部品は `Core.Cli` の `PleasanterApiKey`（実装済み）。
@@ -797,7 +784,7 @@ public static class CliApplication
 **契約テストの形（実装済み。`src/VehicleVision.PleasanterTools.Core.Cli.Testing`、Core#174）**:
 各ツールは、抽象クラス `CliContractTests` を継承し、検査する CLI の定義 `CliContract` を返す。
 `CliContract` は、1 回の実行の入口（`CliRunner`。`CliApplication` を使うなら `CliContract.RunnerFor(tool, handlers)`）、
-`ToolSpec`（省略可）、ツール固有のシナリオ（`CliScenario`）、引数の書式の同値（`CliArgumentForms`）、旧名の検出の設定、既知の違反を持つ。
+`ToolSpec`（省略可）、ツール固有のシナリオ（`CliScenario`）、引数の書式の同値（`CliArgumentForms`）、既知の違反を持つ。
 `ToolSpec` を渡すと、ヘルプ（4 つの形・コマンドごと）、`--version`（`--json` を含む）、使い方の誤り（引数なし・未知のコマンド・未知のオプション・
 値に秘密を含む場合・`--json` つき）のシナリオを定義から作る。`ToolSpec` を持たないもの（`MigrationCommand` など、Web アプリの起動引数）は、
 シナリオだけを検査する。
@@ -810,7 +797,6 @@ public static class CliApplication
 | ExitCodes | 終了コードが 0・1・2・3・130 のどれかで、シナリオの結末（成功 0、検査の失敗 1、実行時の失敗 1、使い方の誤り 2、一部だけ完了 3、中断 130）と一致。例外が漏れない（4 章） |
 | Json | `--json` の stdout が 1 行の JSON だけ。枠の項目と順序、`ok` と `exitCode` の整合、`errors`・`warnings` の要素の形、固有の項目の名前（3 章） |
 | Help・Version | ヘルプが stdout に出て終了コード 0。`--version` が `ツール名 バージョン` の 1 行。`--version --json` の枠（5.3、U15） |
-| LegacyEnvironment | 旧名だけ、旧名と新名の両方が設定されたとき、終了コード 2 と案内の `[ERROR]`。値を出さない（6.1、U11・N2） |
 | Secrets | シナリオが指定した秘密が、出力のどこにも出ない（2.1） |
 | ArgumentForms | `--名前=値`・`--名前 値` など、同じ意味の書式が同じ終了コードと stdout になる（5.1） |
 
@@ -844,12 +830,12 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | 統合 | FeedIngest の `FEEDINGEST_PLEASANTER_*`（ツール用の上書き）は、共通の `VVPT_PLEASANTER_*` へ統合する。第 3 の形は設けない | 決定（U9） |
 | `API_KEY_FILE` | 共通の変数にする。Pleasanter に接続する各ツール（ExtensionsMigrator・MailIngest・CalendarStyleCreator など）へ、適用の Issue ごとに追加する。**DotNetClient には足さず、ツール側が共通の部品（`Core.Cli` の `PleasanterApiKey`。5.6）で読む** | 決定（U10、N4） |
 | 移行 | 既存の変数も一斉に新しい名前へ移し、**旧名は受け付けない**（旧名を値として使わない）。破壊的変更 | 決定（Q7） |
-| 旧名の検出 | 旧名の環境変数が設定されているときは、**新名が同時に設定されていても**、`[ERROR] Environment variable X is no longer supported. Use Y.` を stderr に出して終了コード 2。無言で未設定扱いにしない。旧名が残っていることを確実に直させるため。**移行の途中の環境は、旧名を消すまで動かない**（適用 Issue の移行手順と告知に明記する） | 決定（U11、N2） |
-| 告知 | 適用の Issue ごとに、旧名と新名の対応表・移行手順・リリースノートでの告知を書く | 決定（Q7） |
+| 旧名のフォロー | **しない**。旧名の環境変数は読まず、旧名だけが設定された環境は「新名が未設定」として普通に失敗する（専用の `[ERROR] … no longer supported` も、終了コード 2 の特別扱いも無い）。新名と併用されていても、旧名は無視する。旧名が残っていても気づけないので、移行手順とリリースノートで告知する | **決定（2026-11-11、Core#197。U11・N2 を取り消し）** |
+| 告知 | 適用の Issue ごとに、旧名と新名の対応表・移行手順・リリースノートでの告知（旧名が無視されることを含む）を書く | 決定（Q7） |
 | 接頭辞の導き方 | ツール ID（小文字・ハイフン区切り）を大文字にし、`-` を `_` にして `_` を付ける。Core.Data の `AppDatabase` と同じ規則 | 提案 |
 | 型 | 真偽は `true`（大文字小文字を問わない）だけを真とする（現状の `*_ALLOW_INSECURE*` と同じ） | 提案 |
 | 秘密の置き場 | 接続文字列・API キーは、コマンドラインの引数に直書きさせない。環境変数・ファイル・標準入力から受ける | 提案（現状の BinaryMigrator・DatabaseConverter が守っている） |
-| ツール側の名前 | アプリ固有の値（ツール名・`ツール名_` の接頭辞）は、呼び出し側が引数で渡す（Core に書かない）。**製品群で共通の値**（`VVPT_PLEASANTER_*` の名前と旧名の対応）は、Core の規約の対象外で、`Core.Contracts` が定数として持つ（5.6） | 決定（Core の規約、N6） |
+| ツール側の名前 | アプリ固有の値（ツール名・`ツール名_` の接頭辞）は、呼び出し側が引数で渡す（Core に書かない）。**製品群で共通の値**（`VVPT_PLEASANTER_*` の名前）は、Core の規約の対象外で、`Core.Contracts` が定数として持つ（5.6） | 決定（Core の規約、N6） |
 | Pleasanter 本体の変数名 | IndexCreator が読む `<EnvironmentName>_OwnerConnectionString`・`<サービス名>_Rds_<DBMS>_*` などは、本体が決めるので**改名しない** | 決定 |
 
 ### 6.2 現状の一覧と、新しい名前
@@ -864,11 +850,11 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 | FeedIngest | `PLEASANTER_BASE_URL`・`_API_KEY`・`_API_KEY_FILE`、または `FEEDINGEST_PLEASANTER_*`（3 つ。併用は不可）。`FEEDINGEST_DB_PROVIDER`・`_DB_CONNECTIONSTRING`・`_DB_ALLOW_INSECURE`。設定ファイルが指す秘密の名前（利用者が決める） | `{P}.Pleasanter/PleasanterEnvironment.cs:17-29`、`{P}.Cli/DatabaseSetup.cs:8-9` | `VVPT_PLEASANTER_BASE_URL`・`_API_KEY`・`_API_KEY_FILE` に統合（`FEEDINGEST_PLEASANTER_*` は廃止）。`FEEDINGEST_DB_*` は変更なし |
 | MailIngest | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`（`check` だけ。`run` は設定ファイルが指す名前の変数から API キーを読む）。`MAILINGEST_DB_*`。メールの資格情報も設定ファイルが指す名前 | `{P}.Core/PleasanterEnvironment.cs:22-23`、`{P}.Cli/RunCommand.cs:87`、`{P}.Cli/Program.cs:11` | `VVPT_PLEASANTER_BASE_URL`・`_API_KEY`。`_API_KEY_FILE` を追加。**`run` は、設定ファイルが API キーの環境変数名を指したときはその名前、指さないときは共通の `VVPT_PLEASANTER_API_KEY`（と `_API_KEY_FILE`）を読む**（決定、2026-11-09、Core#176。現状は `apiKeyEnvironmentVariable` が必須なので、適用の Issue で任意にする）。`MAILINGEST_DB_*` は変更なし |
 | IndexCreator | `INDEXCREATOR_DBMS`・`INDEXCREATOR_CONNECTION_STRING`・`INDEXCREATOR_SCHEMA`。ほかに Pleasanter 本体の名前 | `src/IndexCreator/Options.cs:198,206-212,220` | `INDEX_CREATOR_DBMS`・`INDEX_CREATOR_CONNECTION_STRING`・`INDEX_CREATOR_SCHEMA`。本体の名前は改名しない |
-| CalendarStyleCreator | `CALENDARSTYLE_ICAL_BEARER_TOKEN`・`_ICAL_BASIC_USER`・`_ICAL_BASIC_PASSWORD`・`_PLEASANTER_API_KEY`、`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/CalendarStyleCreator/Options.cs:11-17` | `CALENDAR_STYLE_CREATOR_ICAL_*`（3 つ）。`PLEASANTER_ALLOW_INSECURE_HTTP`→`VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`。`CALENDARSTYLE_PLEASANTER_API_KEY` は共通の `VVPT_PLEASANTER_API_KEY` へ**統合**（決定、N3）。`VVPT_PLEASANTER_API_KEY_FILE` を追加。旧名は旧名の検出で案内 |
-| DotNetClient（ライブラリ。公開済み 0.4.0） | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`・`PLEASANTER_SERVER_VERSION`・`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/VehicleVision.PleasanterTools.DotNetClient/PleasanterOptions.cs:166-171` | `VVPT_PLEASANTER_*`（`BASE_URL`・`API_KEY`・`SERVER_VERSION`・`ALLOW_INSECURE_HTTP`。`API_KEY_FILE` は DotNetClient には足さない。ツール側が読む）。**旧名は受け付けず、検出して例外を投げる**（決定、N4） |
+| CalendarStyleCreator | `CALENDARSTYLE_ICAL_BEARER_TOKEN`・`_ICAL_BASIC_USER`・`_ICAL_BASIC_PASSWORD`・`_PLEASANTER_API_KEY`、`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/CalendarStyleCreator/Options.cs:11-17` | `CALENDAR_STYLE_CREATOR_ICAL_*`（3 つ）。`PLEASANTER_ALLOW_INSECURE_HTTP`→`VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`。`CALENDARSTYLE_PLEASANTER_API_KEY` は共通の `VVPT_PLEASANTER_API_KEY` へ**統合**（決定、N3）。`VVPT_PLEASANTER_API_KEY_FILE` を追加。旧名は無視される |
+| DotNetClient（ライブラリ。公開済み 0.4.0） | `PLEASANTER_BASE_URL`・`PLEASANTER_API_KEY`・`PLEASANTER_SERVER_VERSION`・`PLEASANTER_ALLOW_INSECURE_HTTP` | `src/VehicleVision.PleasanterTools.DotNetClient/PleasanterOptions.cs:166-171` | `VVPT_PLEASANTER_*`（`BASE_URL`・`API_KEY`・`SERVER_VERSION`・`ALLOW_INSECURE_HTTP`。`API_KEY_FILE` は DotNetClient には足さない。ツール側が読む）。**旧名は受け付けない**（検出も例外もしない。決定、N4 の旧名の検出の部分は 2026-11-11 に取り消し） |
 | Web アプリ全般 | `<アプリ ID>_DB_PROVIDER`・`_DB_CONNECTIONSTRING`・`_DB_ALLOW_INSECURE` | Core の `AppDatabase.cs:81-89` | 変更なし |
-| AtomFeed・CalendarFeed・Questionnaire | `PLEASANTER_ALLOW_INSECURE_HTTP`。接続設定を自前で組み立てて DotNetClient へ渡すので、DotNetClient の `FromEnvironment()` の読み取りは届かず、各アプリが読む。IdentityProvider は読まない | AtomFeed・CalendarFeed: `{P}.Pleasanter/PleasanterGateway.cs:20`。Questionnaire: `{P}.Pleasanter/PleasanterOptions.cs:32`（各リポジトリの `origin/develop`、2026-11-09） | `VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`（6.1 の共通の 5 変数のひとつ）。定数はアプリごとに直す。旧名は旧名の検出で案内（`PleasanterEnvironmentNames.Legacy` に含む） |
-| 同 3 アプリの接続設定 | `<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`（と、`_APIKEY_FILE` があるアプリはそれ）・`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL`（設定ファイル・管理画面の項目と対応するアプリの設定。例は AtomFeed の `ATOMFEED_PLEASANTER_BASEURL`） | AtomFeed: `{P}.Web/Services/AppSettingDefinitions.cs:137-142`（CalendarFeed・Questionnaire も接頭辞違いで同じ形） | **決定（2026-11-09、Core#176 の Q1）**: `<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（`_APIKEY_FILE` があれば `VVPT_PLEASANTER_API_KEY_FILE`）へ寄せる。旧名（アプリ ID 付き）は Core に書かず（アプリ固有の値）、各アプリが `LegacyEnvironmentCheck.Find` の `legacy` 引数で渡す。設定ファイル（`Pleasanter.json` など）の項目との対応は、適用の Issue で詰める。**`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` は、共通の 5 変数に無く、アプリ固有の接頭辞のまま変更しない（決定、9.6 の Q4）** |
+| AtomFeed・CalendarFeed・Questionnaire | `PLEASANTER_ALLOW_INSECURE_HTTP`。接続設定を自前で組み立てて DotNetClient へ渡すので、DotNetClient の `FromEnvironment()` の読み取りは届かず、各アプリが読む。IdentityProvider は読まない | AtomFeed・CalendarFeed: `{P}.Pleasanter/PleasanterGateway.cs:20`。Questionnaire: `{P}.Pleasanter/PleasanterOptions.cs:32`（各リポジトリの `origin/develop`、2026-11-09） | `VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`（6.1 の共通の 5 変数のひとつ）。定数はアプリごとに直す。旧名は無視される |
+| 同 3 アプリの接続設定 | `<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`（と、`_APIKEY_FILE` があるアプリはそれ）・`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL`（設定ファイル・管理画面の項目と対応するアプリの設定。例は AtomFeed の `ATOMFEED_PLEASANTER_BASEURL`） | AtomFeed: `{P}.Web/Services/AppSettingDefinitions.cs:137-142`（CalendarFeed・Questionnaire も接頭辞違いで同じ形） | **決定（2026-11-09、Core#176 の Q1）**: `<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（`_APIKEY_FILE` があれば `VVPT_PLEASANTER_API_KEY_FILE`）へ寄せる。旧名（アプリ ID 付き）は読まず、検出もしない（2026-11-11）。設定ファイル（`Pleasanter.json` など）の項目との対応は、適用の Issue で詰める。**`_APIVERSION`・`_TIMEOUTSECONDS`・`_TIMEZONE`・`_LINKBASEURL` は、共通の 5 変数に無く、アプリ固有の接頭辞のまま変更しない（決定、9.6 の Q4）** |
 | McpOAuthWrapper（参考） | `MCP_GENERAL_*`・`MCP_RDS_*`（設定の接頭辞） | `Program.cs:16`、`Bridge/BridgeSetup.cs:23` | Web で CLI ではない。範囲外 |
 
 ### 6.3 共通の接頭辞の変更の影響（`PLEASANTER_*` → `VVPT_PLEASANTER_*`）
@@ -880,13 +866,13 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
 |---|---|
 | DotNetClient | `PleasanterOptions.FromEnvironment()` が読む 4 つの変数（上の表）。公開 API の挙動の変更。**他のツールと同時に改名し、DotNetClient の次の版（0.5.0 以降）で行う。破壊的変更として告知する。** 例外（旧名を残す）は設けない（決定） |
 | ExtensionsMigrator・FeedIngest・MailIngest・CalendarStyleCreator | それぞれの `PleasanterEnvironment` などが読む変数。各ツールが DotNetClient の次の版へ上げるのと**同時に**揃える |
-| 運用中の設定 | Azure App Service の構成・タスクスケジューラ・systemd・コンテナ定義・CI の秘密など。旧名は、旧名の検出（`[ERROR]`・終了コード 2）で気づける |
+| 運用中の設定 | Azure App Service の構成・タスクスケジューラ・systemd・コンテナ定義・CI の秘密など。旧名は無視されるので、旧名の設定が残っていないか、移行手順で洗い出して直す |
 | Web アプリ（AtomFeed・CalendarFeed・Questionnaire） | `PLEASANTER_ALLOW_INSECURE_HTTP` を読む定数と、自前の接続設定（`<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`。6.2）。各アプリの `compose.yaml`・導入手順書・検証用の環境（`tools/pleasanter-testenv/`）も同じ名前で設定している。DotNetClient の改名とは独立に、各アプリで直す |
 | 手順書・README | この変数を書いている文書。ほかのリポジトリ・ツール（この調査の対象外のものを含む）が同じ変数を読む・設定しているかは、2026-11-09 に洗い出した（9.1。結果は公開しないリポジトリの情報を含むので、この文書には書かない） |
 
-ライブラリである DotNetClient には終了コードが無い。**決定（N4）**: `PleasanterOptions.FromEnvironment()` は、旧名が設定されていれば
-（新名との併用を含む。N2）検出して例外を投げる。メッセージは CLI の `[ERROR]` と同じ内容（`Environment variable X is no longer supported. Use Y.`）。
-検出の定義は、`Core.Contracts` の `PleasanterEnvironmentNames.Legacy` の対応を使う（DotNetClient は `Core.Contracts` だけを参照し、`Core.Cli` は参照しない。対応表を重複して持たない）。
+ライブラリである DotNetClient には終了コードが無い。**決定（N4）**: `PleasanterOptions.FromEnvironment()` は、旧名を読まない。旧名だけが設定された環境は
+新名が未設定として扱う（接続情報が無いという、ふだんの失敗）。旧名の検出・専用の例外は設けない（決定、2026-11-11。N2・N4 の検出の部分を取り消し）。
+DotNetClient は `Core.Contracts` の定数（`PleasanterEnvironmentNames`）だけを参照し、`Core.Cli` は参照しない。
 
 ### 6.4 対応表の作り方（適用の Issue に書くこと）
 
@@ -899,8 +885,8 @@ Ctrl+C の 2 回（1 回目は 130 で安全に止まる、2 回目はすぐ終�
     | `DBCONV_SOURCE_CONNECTION` | `DATABASE_CONVERTER_SOURCE_CONNECTION` | 接頭辞の改名 | 旧名は受け付けない |
 
    変更の種類は「接頭辞の改名」「共通へ統合」「変更なし」のいずれか。変更なしの変数も、確かめた印に 1 行ずつ書く
-2. **旧名の検出**（決定、U11・N2）。旧名が設定されていれば（新名との併用を含む）、`[ERROR] Environment variable X is no longer supported. Use Y.`
-   を出して終了コード 2。この動きを、適用の Issue の受け入れ条件に入れる。**移行の途中の環境は、旧名を消すまで動かない**ことを、
+2. **旧名は無視されること**（決定、2026-11-11）。旧名の検出・案内・終了コード 2 の特別扱いは無い。旧名だけ設定された環境は、新名が未設定として
+   普通に失敗する（新名と併用されていても、旧名は無視する）。**旧名を消すのではなく、新名へ置き換えるまで動かない**ことを、
    移行手順とリリースノートの告知に明記する
 3. **移行手順**。運用中の環境の設定を、どの順で直すか。直すまで動かなくなることを明記する
 4. **リリースノートでの告知**。破壊的変更として、版・旧名・新名・直し方を書く（DotNetClient は次の版）
@@ -1014,9 +1000,9 @@ flowchart TD
 
 | 順 | 対象 | 理由 | 適用 Issue に書く主な影響 |
 |---|---|---|---|
-| 1 | Core.Cli・Core.Cli.Testing の実装（**実装済み**。公開は Core#177） | 部品が無いと始まらない。新パッケージは、nuget.org のポリシー・`release.yml`・リリース手順書の更新が要る。補完（3 シェル。ファイル名・動的な値を含む）の保守・テストの手間が最大。`VVPT_PLEASANTER_*` の定数は `Core.Contracts`、旧名の検出は `Core.Cli` が持つ（N6） | 公開 API の追加。各ツールの追随は Issue に残す |
+| 1 | Core.Cli・Core.Cli.Testing の実装（**実装済み**。公開は Core#177） | 部品が無いと始まらない。新パッケージは、nuget.org のポリシー・`release.yml`・リリース手順書の更新が要る。補完（3 シェル。ファイル名・動的な値を含む）の保守・テストの手間が最大。`VVPT_PLEASANTER_*` の定数は `Core.Contracts`、`Core.Cli` は旧名を扱わない（N6、2026-11-11 の決定） | 公開 API の追加。各ツールの追随は Issue に残す |
 | 1b | Core.Data の `MigrationCommand`・例外メッセージ（**実装済み**。Core#175・#176） | FeedIngest・MailIngest・Web アプリが共通で使う。Core 側の直しなので先に。`Core.Cli` は参照せず、`TextWriter` を受けて文言・終了コードだけを揃える（U12） | DB の待機期限切れ 2→1。`--wait-for-db N` の形。例外メッセージの英語化（公開 API の挙動の変更） |
-| 1c | DotNetClient の次の版（0.5.0 以降） | 共通の `VVPT_PLEASANTER_*` の元。ほかのツールが先に改名できない | **公開済み 0.4.0 を含む破壊的変更**。旧名は受け付けず、検出して例外を投げる（N4）。`API_KEY_FILE` は足さない。リリースノートで告知 |
+| 1c | DotNetClient の次の版（0.5.0 以降） | 共通の `VVPT_PLEASANTER_*` の元。ほかのツールが先に改名できない | **公開済み 0.4.0 を含む破壊的変更**。旧名は受け付けず、検出もしない（N4。検出の部分は 2026-11-11 に取り消し）。`API_KEY_FILE` は足さない。リリースノートで告知 |
 | 2 | ExtensionsMigrator | 最も新しく、CLI のみ（GUI は作らない）。コマンドが複数あり、`CommandContext`・`ICommand` が土台になるので、部品の形を試せる | `plan` の衝突 0→1。余計な引数がエラーに。中断 130。`--json`。環境変数 `VVPT_PLEASANTER_*`（`API_KEY_FILE` を追加） |
 | 3 | DatabaseConverter | 3 重実装のうち 1 つ。環境変数の改名がある | `WARNING:` が stderr の `[WARN]` へ。`DBCONV_*`→`DATABASE_CONVERTER_*`。中断 130 |
 | 4 | BinaryMigrator | 3 重実装のうち 1 つ。出力の量が多い（1 件ごとの行を stderr へ移す） | 進行が stderr へ。重複指定がエラーに。中断 130。`--json` |
@@ -1024,7 +1010,7 @@ flowchart TD
 | 6 | MailIngest | `validate` の終了コード、`run --json` の形が変わる（出力を読む側に影響） | **`validate` の中身の問題が 2→1**。`--json` の枠。日本語メッセージの英語化。中断 130。環境変数 `VVPT_PLEASANTER_*` |
 | 7 | IndexCreator | `/名前` の既存の書式は保てる。3 の意味が変わる。内部の操作名（`_rds` など）は残す（U17） | DB の失敗 3→1。**確認の拒否 2→1**。`plan` は 0 のまま。警告・質問が stderr へ。`INDEXCREATOR_*`→`INDEX_CREATOR_*`。`--yes`/`-y` |
 | 8 | CalendarStyleCreator | 想定外の例外を 1 にする | `CALENDARSTYLE_*`→`CALENDAR_STYLE_CREATOR_*`。`CALENDARSTYLE_PLEASANTER_API_KEY` は `VVPT_PLEASANTER_API_KEY` へ統合。`PLEASANTER_ALLOW_INSECURE_HTTP` の改名。`[OK]`・`[ERROR]` |
-| 9 | Web アプリ（AtomFeed・CalendarFeed・IdentityProvider・Questionnaire） | 1b のあと。IdentityProvider は自前の複製を Core の版へ寄せる。AtomFeed・CalendarFeed・Questionnaire は `PLEASANTER_ALLOW_INSECURE_HTTP` と、自前の接続設定（`<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`）も共通の `VVPT_PLEASANTER_*` へ寄せる（DotNetClient の次の版のあと） | `--migrate` の出力と終了コード。環境変数 `PLEASANTER_ALLOW_INSECURE_HTTP`→`VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`、`<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（compose・導入手順書・検証用の環境も。旧名の検出はアプリが `Find` の引数で渡す） |
+| 9 | Web アプリ（AtomFeed・CalendarFeed・IdentityProvider・Questionnaire） | 1b のあと。IdentityProvider は自前の複製を Core の版へ寄せる。AtomFeed・CalendarFeed・Questionnaire は `PLEASANTER_ALLOW_INSECURE_HTTP` と、自前の接続設定（`<アプリ ID>_PLEASANTER_BASEURL`・`_APIKEY`）も共通の `VVPT_PLEASANTER_*` へ寄せる（DotNetClient の次の版のあと） | `--migrate` の出力と終了コード。環境変数 `PLEASANTER_ALLOW_INSECURE_HTTP`→`VVPT_PLEASANTER_ALLOW_INSECURE_HTTP`、`<アプリ ID>_PLEASANTER_BASEURL`→`VVPT_PLEASANTER_BASE_URL`、`_APIKEY`→`VVPT_PLEASANTER_API_KEY`（compose・導入手順書・検証用の環境も。旧名は無視される） |
 
 置き換えのたびに、旧名と新名の対応表・移行手順・リリースノート（6.4）を書く。リリースは、Core・各ツールとも
 `release.yml` の dry-run を先に回し、タグは付け直せないことに注意する。
@@ -1070,11 +1056,11 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 |---|---|---|
 | U1 | 補完（シェルのタブ補完）を**初版に入れる**。PowerShell・bash・zsh の 3 つに対応し、定義から生成する。保守・テストの手間が最大 | 5.5、5.6、5.7、8 |
 | N1 | 入口は各ツールの `completion <shell>`（スクリプトを stdout へ）。列挙値に加え、ファイル名と動的な値も補完する。シェルごとの差が大きく、テストの手間が増える。動的な値は隠しコマンドで呼び戻す方式（Core#173 で決定） | 5.5、5.7 |
-| N2 | 旧名と新名の**両方**が設定されていても `[ERROR]`・2。移行の途中の環境は旧名を消すまで動かない（移行手順と告知に明記） | 6.1、6.4 |
-| N3 | CalendarStyleCreator の `CALENDARSTYLE_PLEASANTER_API_KEY` を `VVPT_PLEASANTER_API_KEY` へ統合。旧名は旧名の検出で案内 | 6.2、8 |
-| N4 | DotNetClient の `FromEnvironment()` は、旧名が設定されていれば検出して例外（CLI の `[ERROR]` と同じ内容）。`API_KEY_FILE` は DotNetClient に足さず、ツール側が共通の部品で読む | 5.6、6.1〜6.3、8 |
+| N2 | **取り消し（2026-11-11、Core#197）**。旧名のフォロー（旧名の検出・`[ERROR]`・2）をやめた。旧名は無視され、告知で知らせる | 6.1、6.4 |
+| N3 | CalendarStyleCreator の `CALENDARSTYLE_PLEASANTER_API_KEY` を `VVPT_PLEASANTER_API_KEY` へ統合。旧名は無視される | 6.2、8 |
+| N4 | DotNetClient の `FromEnvironment()` は、旧名を読まない（旧名の検出・例外は 2026-11-11 に取り消し）。`API_KEY_FILE` は DotNetClient に足さず、ツール側が共通の部品で読む | 5.6、6.1〜6.3、8 |
 | N5 | `--yes`/`-y` は、確認の質問を持つコマンドだけが宣言する。持たないコマンドで指定したらエラー（2） | 5.6 |
-| N6 | `VVPT_PLEASANTER_*` の名前と旧名の対応を、Core が公開 API の定数として持つ。Core の規約の対象はアプリ固有の値で、製品群で共通の値は対象外 | 1.3.1、5.6、6.1 |
+| N6 | `VVPT_PLEASANTER_*` の名前を、Core が公開 API の定数として持つ。Core の規約の対象はアプリ固有の値で、製品群で共通の値は対象外 | 1.3.1、5.6、6.1 |
 | U2 | オプション名・コマンド名の大文字小文字は区別しない（値は区別する）。大文字小文字だけが違う 2 つの名前は、定義の時点で例外 | 5.1 |
 | U3 | `--json` の枠に `exitCode`（整数）だけ足す。`schemaVersion` は足さない | 3.1、3.2 |
 | U4 | `--json` が解釈できたときだけ、使い方の誤り（2）も JSON の枠で stdout へ。文章のエラーは stderr にも出す | 3.2 |
@@ -1084,7 +1070,7 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 | U8 | 接頭辞は単語を `_` で区切る。`FEEDINGEST_`・`MAILINGEST_` は変えない。略称をやめる（共通の `VVPT_` だけ例外） | 6.1、6.2 |
 | U9 | `FEEDINGEST_PLEASANTER_*` は共通へ統合。規則は 2 つだけ | 6.1、6.2 |
 | U10 | `API_KEY_FILE` を共通の変数にする | 6.1、6.2 |
-| U11 | 旧名だけが設定されているときは `[ERROR]`・終了コード 2 で案内する。旧名を値として使わない | 6.1、6.4 |
+| U11 | 旧名を値として使わない。**旧名の検出・`[ERROR]`・終了コード 2 の案内は、2026-11-11 に取り消し（Core#197）** | 6.1、6.4 |
 | 共通の接頭辞 | Q7 の `PLEASANTER_` を **`VVPT_PLEASANTER_*`** へ変更。旧 `PLEASANTER_*` は受け付けない | 6.1〜6.3 |
 | DotNetClient | 他のツールと同時に `VVPT_PLEASANTER_*` へ改名。旧名を受け付けない（Q7 の例外を設けない）。次の版（0.5.0 以降、破壊的変更として告知）で行い、各ツールがその版へ上げるのと同時に揃える | 6.3、8 |
 | U12 | `Core.Data` は `Core.Cli` を参照しない。`MigrationCommand` は `TextWriter` を受け、文言・終了コードだけを揃える。ずれは契約テストで検出 | 5.6、5.7、8 |
@@ -1102,8 +1088,8 @@ U1〜U18 と N1〜N6 のすべてに回答があり、本文へ「決定」と�
 | 補完の動的な値の範囲・方式 | **解消**（Core#173）。隠しコマンド `__complete` で呼び戻す。時間制限はツールごと（既定 2 秒）。失敗・時間超過は何も出さない。どの値を動的にするかは各ツールの適用 Issue（`OptionValueCompletion.Dynamic` と `CompletionProvider`） |
 | 補完のテスト | **解消**（Core#173）。生成物の固定は 3 シェル、実機は Linux の bash・PowerShell だけ CI。動的な値は接続先を要するので各ツール側 |
 | `API_KEY_FILE` を読む共通の部品 | **解消**。`Core.Cli` の `PleasanterApiKey`（5.6）。環境変数とファイルはどちらか片方（両方あれば使い方の誤り）、ファイルは前後の空白・改行を除き、読めない・空はエラー（メッセージにキー・中身は含めず、パスは含める） |
-| DotNetClient の旧名の検出の持ち方 | 解消。DotNetClient は `Core.Contracts` だけを参照し、対応表（`PleasanterEnvironmentNames.Legacy`）を共有する。検出の処理は DotNetClient 側に書く（Core#181。適用は DotNetClient の Issue） |
-| 旧名の対応表の実装 | `PleasanterEnvironmentNames.Legacy` の中身は、6.2 の表を元にする |
+| DotNetClient の旧名の検出の持ち方 | 取り消し（2026-11-11、Core#197）。旧名の検出をやめたので、検出の処理も旧名の対応表（`PleasanterEnvironmentNames.Legacy`）も持たない |
+| 旧名の対応表の実装 | 取り消し（2026-11-11、Core#197）。`PleasanterEnvironmentNames.Legacy` は削除した |
 | 契約テストの範囲 | **解消**（Core#174）。規則は 5.7 の表。`MigrationCommand` のずれは「既知の違反」として固定し、Core#175 で直したら外す。`MigrationCommand` の `--migrate-status`（未適用あり=1）は「検査の失敗」の 1 として 4 章に決定を足した（Core#175） |
 
 ### 9.5 公開範囲の確認
