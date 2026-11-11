@@ -43,8 +43,8 @@ Questionnaire ほか）が共通で使う、コア部分の実装。** アプリ
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・接続の暗号化検査・起動時マイグレーションと排他 |
 | `VehicleVision.PleasanterTools.Core.Web` | Web 層の部品（Pleasanter のログインで本人を確かめる問い合わせ） |
-| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名と旧名の対応）。定数と読み取り専用の対応表だけで、処理を持たない |
-| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・旧名の検出・補完）。BCL と `Core.Contracts` だけに依存 |
+| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名）。定数だけで、処理を持たない |
+| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・補完）。BCL と `Core.Contracts` だけに依存 |
 | `VehicleVision.PleasanterTools.Core.Cli.Testing` | CLI の契約テスト（xUnit。各ツールが自分のテストで回す）。仕様は [`_documents/CLIの共通仕様書.md`](../_documents/CLIの共通仕様書.md) |
 
 `Core.Web.Testing`（管理画面の HTTP 契約の試験用）も同じ接頭辞で公開している。

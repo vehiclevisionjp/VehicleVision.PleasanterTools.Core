@@ -98,20 +98,6 @@ public sealed class 契約テストが違反を検出するTests
     }
 
     [Fact]
-    public async Task 旧名の検出漏れを検出する()
-    {
-        var contract = Fake((_, _, _, _) => 0) with
-        {
-            LegacyEnvironment = new CliLegacyEnvironmentProbe
-            {
-                Args = ["run"],
-                Legacy = new Dictionary<string, string> { ["OLD_NAME"] = "NEW_NAME" },
-            },
-        };
-        await AssertDetectedAsync(contract, CliContractRules.LegacyEnvironment);
-    }
-
-    [Fact]
     public async Task 引数の書式の食い違いを検出する()
     {
         var contract = Fake((args, _, _, _) => args.Contains("--n=1") ? 0 : 1) with

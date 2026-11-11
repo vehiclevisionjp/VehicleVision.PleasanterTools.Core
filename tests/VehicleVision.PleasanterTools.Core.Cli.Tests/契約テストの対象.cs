@@ -22,11 +22,6 @@ internal static class ContractTestTool
     {
         ["run"] = (context, _) =>
         {
-            var legacy = LegacyEnvironmentCheck.Report(context.Output, context.GetEnvironmentVariable);
-            if (legacy != ExitCodeValues.Success)
-            {
-                return Task.FromResult(legacy);
-            }
             if (context.Options.Has(StandardOptions.JsonName))
             {
                 context.Output.WriteJson("run", true, ExitCodeValues.Success, [], []);
@@ -77,7 +72,6 @@ public sealed class CliApplicationContractTests : CliContractTests
         Name = "Core.Cli",
         Run = ContractTestTool.Runner,
         Tool = ContractTestTool.Spec,
-        LegacyEnvironment = new CliLegacyEnvironmentProbe { Args = ["run"] },
         Scenarios =
         [
             new CliScenario { Name = "run", Args = ["run"], Outcome = CliOutcome.Success, RequiresOkLine = true },

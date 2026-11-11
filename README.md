@@ -74,8 +74,8 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
 | `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表 |
-| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名と旧名の対応）。定数と読み取り専用の対応表だけで、処理を持たない |
-| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・旧名の検出・シェル補完）。[CLI の共通仕様書][cli-spec] |
+| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名）。定数だけで、処理を持たない |
+| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・シェル補完）。[CLI の共通仕様書][cli-spec] |
 | `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は 0.1.0 に含まれる。追加の安全性契約は未公開 |
 | `VehicleVision.PleasanterTools.Core.Cli.Testing` | 試験用。CLI の契約テストの xUnit 基底クラス（ヘルプ・エラーの ASCII、結果の出力先、終了コード表など）。各ツールが自分のテストで回す |
 

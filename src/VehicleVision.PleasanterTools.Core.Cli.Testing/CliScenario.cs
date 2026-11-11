@@ -119,16 +119,3 @@ public sealed record CliArgumentForms
     /// <summary>環境変数。</summary>
     public IReadOnlyDictionary<string, string>? Environment { get; init; }
 }
-
-/// <summary>
-/// 旧名の検出（仕様書 6.1、決定 U11・N2）を確かめる設定。旧名が 1 つだけ設定されたとき、
-/// 旧名と新名の両方が設定されたときの両方で、終了コード 2 と <c>[ERROR]</c> の案内を出すか。
-/// </summary>
-public sealed record CliLegacyEnvironmentProbe
-{
-    /// <summary>旧名の検出に行き着くコマンドの引数（環境変数を読むコマンドを 1 つ選ぶ）。</summary>
-    public required IReadOnlyList<string> Args { get; init; }
-
-    /// <summary>旧名 → 新名。省略時は <see cref="PleasanterEnvironmentNames.Legacy"/>。</summary>
-    public IReadOnlyDictionary<string, string>? Legacy { get; init; }
-}

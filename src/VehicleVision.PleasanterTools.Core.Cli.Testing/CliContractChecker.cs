@@ -63,9 +63,6 @@ public static partial class CliContractChecker
             case CliContractRules.ArgumentForms:
                 await CheckArgumentFormsAsync(contract, violations);
                 break;
-            case CliContractRules.LegacyEnvironment:
-                await CheckLegacyAsync(contract, violations);
-                break;
             case CliContractRules.Ascii or CliContractRules.Streams or CliContractRules.Prefixes
                 or CliContractRules.ExitCodes or CliContractRules.Json or CliContractRules.Help
                 or CliContractRules.Version or CliContractRules.Secrets:
@@ -455,48 +452,4 @@ public static partial class CliContractChecker
 
     private static string Describe(int? code, Exception? exception) =>
         exception is null ? code.ToString()! : $"例外 {exception.GetType().Name}";
-
-    private static async Task CheckLegacyAsync(CliContract contract, List<ContractViolation> violations)
-    {
-        if (contract.LegacyEnvironment is not { } probe)
-        {
-            return;
-        }
-        var legacy = probe.Legacy ?? PleasanterEnvironmentNames.Legacy;
-        const string value = "legacy-value-0123";
-        foreach (var (oldName, newName) in legacy)
-        {
-            var expected = $"[ERROR] Environment variable {oldName} is no longer supported. Use {newName}.";
-            foreach (var withNew in new[] { false, true })
-            {
-                var name = withNew ? $"{oldName} with {newName}" : oldName;
-                var environment = new Dictionary<string, string> { [oldName] = value };
-                if (withNew)
-                {
-                    environment[newName] = value;
-                }
-                var (code, stdout, stderr, exception) = await CliRun.InvokeAsync(
-                    contract, probe.Args, environment, string.Empty, false, null);
-                void Add(string message) =>
-                    violations.Add(new ContractViolation(CliContractRules.LegacyEnvironment, name, message));
-                if (exception is not null)
-                {
-                    Add($"例外が漏れた: {exception.GetType().Name}");
-                    continue;
-                }
-                if (code != ExitCodeValues.UsageError)
-                {
-                    Add($"終了コードが {code}（期待は 2）。");
-                }
-                if (!CliRun.Lines(stderr).Contains(expected))
-                {
-                    Add($"stderr に「{expected}」の行がない。");
-                }
-                if (stdout.Contains(value, StringComparison.Ordinal) || stderr.Contains(value, StringComparison.Ordinal))
-                {
-                    Add("旧名の値が出力に含まれている。");
-                }
-            }
-        }
-    }
 }

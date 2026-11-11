@@ -24,9 +24,6 @@ public static class CliContractRules
     /// <summary><c>--version</c>（仕様書 5.3、決定 U15）。</summary>
     public const string Version = "Version";
 
-    /// <summary>旧名の検出（仕様書 6.1）。</summary>
-    public const string LegacyEnvironment = "LegacyEnvironment";
-
     /// <summary>秘密を出さない（仕様書 2.1）。</summary>
     public const string Secrets = "Secrets";
 
@@ -35,7 +32,7 @@ public static class CliContractRules
 
     /// <summary>すべての規則。</summary>
     public static IReadOnlyList<string> All { get; } =
-        [Ascii, Streams, Prefixes, ExitCodes, Json, Help, Version, LegacyEnvironment, Secrets, ArgumentForms];
+        [Ascii, Streams, Prefixes, ExitCodes, Json, Help, Version, Secrets, ArgumentForms];
 }
 
 /// <summary>契約に違反した 1 件。</summary>
@@ -76,9 +73,6 @@ public sealed record CliContract
 
     /// <summary>引数の書式の同値。</summary>
     public IReadOnlyList<CliArgumentForms> ArgumentForms { get; init; } = [];
-
-    /// <summary>旧名の検出。環境変数を読まないツールは省略する。</summary>
-    public CliLegacyEnvironmentProbe? LegacyEnvironment { get; init; }
 
     /// <summary>既知の違反（直す Issue があるもの）。</summary>
     public IReadOnlyList<KnownViolation> KnownViolations { get; init; } = [];
