@@ -56,7 +56,7 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 |---|---|
 | テンプレート | 社内 Template から新しいツールを作り、名前と資料・設定を実態に合わせます。[作成の流れ][family-operations] |
 | CI・ブランチ・リリース | CI を通して `develop` → `master`、タグ `vX.Y.Z` で公開します。[ブランチ運用][branch-policy]・[リリース手順][release-guide] |
-| patch 更新 | npm・NuGet の patch 更新を、ロックファイル・NOTICE と合わせて PR にし、必須チェック通過後に自動適用します。[更新の流れ][family-operations] |
+| 依存の更新 | npm・NuGet は人が必要なときにまとめて更新します。GitHub Actions は Dependabot、脆弱性は監査と dependency-review が検知します。[運用の情報][family-operations] |
 | 設定の監査 | 共通の GitHub 設定やファイル・Core 参照版の差を読み取り専用で調べ、自動修復はしません。[監査の範囲][family-operations] |
 | 管理画面 | アプリ間で揃える認証・権限・設定などを定めています（各アプリへ反映中）。[共通仕様書][admin-spec] |
 | 契約テスト | Core.Web.Testing で管理画面の HTTP 契約を共有し、Questionnaire の試験で採用しています。[契約テストの方針][contract-policy] |
