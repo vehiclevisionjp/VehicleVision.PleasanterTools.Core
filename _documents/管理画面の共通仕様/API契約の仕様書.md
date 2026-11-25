@@ -78,6 +78,25 @@ Q の再確認はパスワードのみ。complete で `Disabled` を入口で確
 （`Q.Web/Services/AdminAuthenticator.cs:399-410`）。その例外時の HTTP 状態は未確認。
 AF・CF の complete は既に拒否するが、400 ではなく 403（A.2）。
 
+### 5.3.1 パスキー（#216。認証とセッションの仕様書 3.10）
+
+**機能が無効（既定）の間は、次のすべてが 404**（既存の行は消さない）。エラーは `{ code }`（鍵は 設定と多言語の仕様書 9.2）。
+認可の「Session」は `Session` の段階だけ（Pending・Reenroll は 401）。再認証は `{password}` か `{assertion}`（3.10.6）。
+
+| メソッド・パス | 認可 | 要求 | 応答（200） | ほかの状態 |
+|---|---|---|---|---|
+| GET `/me/passkeys` | Session | — | `{passkeys:[{id, name, createdAt, lastUsedAt, backedUp, transports}]}` | 401 |
+| POST `/me/passkeys/begin` | Session ＋ 再認証 | `{password}` または `{assertion}` | WebAuthn の登録オプション | 401 `passkeys.reauthRequired`・`users.currentPasswordRejected` / 423 / 409 `passkeys.limitReached` / 400 `passkeys.originNotAllowed` |
+| POST `/me/passkeys/complete` | Session | `{credential, name?}` | `{passkey:{…}}` | 400 `passkeys.invalidResponse`・`passkeys.invalidName` / 409 `passkeys.duplicateCredential`・`passkeys.limitReached` |
+| PUT `/me/passkeys/{id}` | Session | `{name}` | `{name}` | 400 `passkeys.invalidName` / 404（他人の分も） |
+| POST `/me/passkeys/{id}/remove` | Session ＋ 再認証 | `{password}` または `{assertion}` | `{removed:true}` | 401 / 423 / 404 / 409 `passkeys.lastSignInMethod` |
+| POST `/login/passkey/begin` | 公開（`/login` と同じレート制限の枠） | `{}` | WebAuthn の認証オプション（`allowCredentials` は空） | 429（アプリの方針） |
+| POST `/login/passkey/complete` | 公開（同上） | `{credential}` | `{next:"done"}`。Session（`via=passkey`、2 要素は満たす扱い） | 401 `auth.invalidCredentials`（理由を区別しない）/ 429 |
+| POST `/users/{id}/passkeys/reset` | **`users.resetPasskeys`** | — | `{reset:true, removed:n}`。相手の全セッションを失効 | 403 / 400 `users.selfNotAllowed` / 404 `users.notFound` |
+
+`GET /session` には、ログイン画面が「パスキーでログイン」を出すかを決める `passkeyEnabled` を足す（アプリが実装）。
+`/me/sessions` の `loginMethod` に `"Passkey"` を足す。
+
 ## 5.4 外部ログイン・監査・設定（共通の候補）
 
 | メソッド・パス | 認可 | 要求 | 応答（200） | ほかの状態 | 根拠 |

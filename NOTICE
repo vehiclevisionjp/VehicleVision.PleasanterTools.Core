@@ -20,6 +20,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PMC-Commercial
 
   Otp.NET 1.4.1 / MIT / https://www.nuget.org/packages/Otp.NET/1.4.1
     （TOTP の計算。https://github.com/kspearrin/Otp.NET/blob/master/LICENSE.txt を確認、参照日 2026-10-22）
+  Fido2 4.3.3 / MIT / https://www.nuget.org/packages/Fido2/4.3.3
+    （管理画面のパスキー（WebAuthn）の検証。Fido2NetLib。ライセンスは NuGet の licenseExpression と、
+      https://github.com/passwordless-lib/fido2-net-lib/blob/master/LICENSE.txt（MIT License）を確認、参照日 2026-11-25。
+      net8.0 と net10.0 に対応。推移的に Fido2.Models（MIT）・Microsoft.IdentityModel.JsonWebTokens（MIT）・
+      System.Formats.Cbor（MIT）・NSec.Cryptography 25.4.0（MIT）を伴う。
+      NSec.Cryptography は、ネイティブの libsodium 1.0.20.1（ISC。寛容ライセンス。https://www.nuget.org/packages/libsodium/1.0.20.1）を
+      NuGet パッケージの runtimes（win-x64 / linux-x64 ほか）として伴う。Pleasanter 本体の Fido2 の実装は取り込んでいない）
   Dapper 2.1.100 / Apache-2.0 / https://www.nuget.org/packages/Dapper
   FluentMigrator 8.0.1 / Apache-2.0 / https://www.nuget.org/packages/FluentMigrator
   FluentMigrator.Runner.Core 8.0.1 / Apache-2.0
