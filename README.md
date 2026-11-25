@@ -32,8 +32,8 @@ Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[C
 | [BinaryMigrator][repo-binarymigrator] | 添付ファイルの保管先を Rds・Local・AzureBlob 間で移行 | ツール | [デュアル][license-binarymigrator] | 開発中 | なし |
 | [DatabaseConverter][repo-databaseconverter] | Pleasanter の DB を SQL Server・PostgreSQL・MySQL 間で変換 | ツール | [デュアル][license-databaseconverter] | 開発中 | なし |
 | [DotNetClient][repo-dotnetclient] | Pleasanter の標準 Web API を呼ぶ .NET クライアント | ライブラリ | LGPL | 開発中 | なし |
-| [FeedIngest][repo-feedingest] | RSS / Atom を取り込み、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
-| [MailIngest][repo-mailingest] | POP3 / IMAP のメールを取り込み、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
+| [FeedIngest][repo-feedingest] | RSS / Atom をインポートし、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
+| [MailIngest][repo-mailingest] | POP3 / IMAP のメールをインポートし、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
 | [Core][repo-core] | 各ツールの DB・メール・Web・CLI・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.2.0 | 提供元 |
 | Template（社内テンプレート） | 新しいツールのひな形と共通の開発運用を提供 | ツール | AGPL | 開発中（社内用） | なし |
 
@@ -126,7 +126,7 @@ var saml = SamlOptions.FromConfiguration(
 // DB と外部設定を合成する場合は FromValues(valueOf, 設定キー型, …) を使う。
 var keys = new PleasanterSsoSettingKeys("APP_");
 // 設定の誤りは AuthenticationSettingException（InvalidOperationException の派生）。
-// Error と Arguments から、アプリの多言語例外へ写し替えられる。
+// Error と Arguments から、アプリの多言語例外へ変換できる。
 
 if (MigrationCommand.IsRequested(args))
 {
