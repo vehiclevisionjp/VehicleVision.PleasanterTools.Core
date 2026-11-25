@@ -20,6 +20,9 @@ public static class SessionVia
     public const string Password = "password";
     public const string Saml = "saml";
     public const string Pleasanter = "pleasanter";
+
+    /// <summary>パスキーで入った（パスワードの代わりに 1 回で入る。2 要素は満たす扱い）。</summary>
+    public const string Passkey = "passkey";
 }
 
 /// <summary>ログイン中の端末 1 つ分（サーバ側セッション）。</summary>
@@ -66,6 +69,21 @@ public interface IAdminSessionStore
         string? ipAddress = null,
         string? userAgent = null,
         SessionSso? sso = null);
+
+    /// <summary>
+    /// 入った方式（<see cref="SessionVia"/>）を残してセッションを作る（パスキーなど、鍵を持たない方式のため）。
+    /// 既定の実装は方式を残さず <see cref="CreateAsync"/> へ回す（旧い実装を壊さない）。
+    /// </summary>
+    Task<string> CreateWithViaAsync(
+        Guid userId,
+        string kind,
+        TimeSpan lifetime,
+        string via,
+        CancellationToken cancellationToken = default,
+        string? ipAddress = null,
+        string? userAgent = null,
+        SessionSso? sso = null) =>
+        CreateAsync(userId, kind, lifetime, cancellationToken, ipAddress, userAgent, sso);
 
     /// <summary>外部のログイン（SAML・Pleasanter）で入ったセッションが持つ値。どちらでもなければ <c>null</c>。</summary>
     Task<SessionSso?> GetSsoAsync(string sessionId, CancellationToken cancellationToken = default);
@@ -123,14 +141,39 @@ public sealed class AdminSessionStore(IDbConnectionFactory connections, TimeProv
     private static string IdHash(string sessionId) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(sessionId)));
 
-    public async Task<string> CreateAsync(
+    public Task<string> CreateAsync(
         Guid userId,
         string kind,
         TimeSpan lifetime,
         CancellationToken cancellationToken = default,
         string? ipAddress = null,
         string? userAgent = null,
+        SessionSso? sso = null) =>
+        CreateCoreAsync(userId, kind, lifetime, null, cancellationToken, ipAddress, userAgent, sso);
+
+    public Task<string> CreateWithViaAsync(
+        Guid userId,
+        string kind,
+        TimeSpan lifetime,
+        string via,
+        CancellationToken cancellationToken = default,
+        string? ipAddress = null,
+        string? userAgent = null,
         SessionSso? sso = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(via);
+        return CreateCoreAsync(userId, kind, lifetime, via, cancellationToken, ipAddress, userAgent, sso);
+    }
+
+    private async Task<string> CreateCoreAsync(
+        Guid userId,
+        string kind,
+        TimeSpan lifetime,
+        string? via,
+        CancellationToken cancellationToken,
+        string? ipAddress,
+        string? userAgent,
+        SessionSso? sso)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
 
@@ -143,9 +186,9 @@ public sealed class AdminSessionStore(IDbConnectionFactory connections, TimeProv
         await using var connection = connections.Create();
         await connection.ExecuteAsync(new CommandDefinition(
             Sql("INSERT INTO [Core_AdminSessions] ([Id], [UserId], [Kind], [CreatedAt], [ExpiresAt], [IpAddress], [UserAgent], "
-                + "[SamlNameId], [SamlSessionIndex], [PleasanterTenantId], [PleasanterUserId], [PleasanterVerifiedAt]) "
+                + "[SamlNameId], [SamlSessionIndex], [PleasanterTenantId], [PleasanterUserId], [PleasanterVerifiedAt], [Via]) "
                 + "VALUES (@Id, @UserId, @Kind, @CreatedAt, @ExpiresAt, @IpAddress, @UserAgent, @SamlNameId, @SamlSessionIndex, "
-                + "@PleasanterTenantId, @PleasanterUserId, @PleasanterVerifiedAt)"),
+                + "@PleasanterTenantId, @PleasanterUserId, @PleasanterVerifiedAt, @Via)"),
             new
             {
                 Id = IdHash(sessionId),
@@ -155,6 +198,7 @@ public sealed class AdminSessionStore(IDbConnectionFactory connections, TimeProv
                 ExpiresAt = DbTime.ForDb((now + lifetime).UtcDateTime),
                 IpAddress = AuditText.Safe(ipAddress, 64),
                 UserAgent = AuditText.Safe(userAgent, 512),
+                Via = AuditText.Safe(via, 32),
                 SamlNameId = AuditText.Safe(samlKeys?.NameId, 256),
                 SamlSessionIndex = AuditText.Safe(samlKeys?.SessionIndex, 256),
                 PleasanterTenantId = pleasanter?.TenantId,
@@ -223,13 +267,13 @@ public sealed class AdminSessionStore(IDbConnectionFactory connections, TimeProv
         await using var connection = connections.Create();
         var rows = await connection.QueryAsync<InfoRow>(
             new CommandDefinition(
-                Sql("SELECT [Id], [CreatedAt], [ExpiresAt], [IpAddress], [UserAgent], [SamlNameId], [PleasanterUserId] FROM [Core_AdminSessions] "
+                Sql("SELECT [Id], [CreatedAt], [ExpiresAt], [IpAddress], [UserAgent], [SamlNameId], [PleasanterUserId], [Via] FROM [Core_AdminSessions] "
                     + "WHERE [UserId] = @UserId AND [Kind] = @Kind AND [ExpiresAt] > @Now ORDER BY [CreatedAt] DESC, [Id] DESC"),
                 new { UserId = userId, Kind = AdminSessionKinds.Session, Now = Now() },
                 cancellationToken: cancellationToken)).ConfigureAwait(false);
         return [.. rows.Select(r => new AdminSessionInfo(
             r.Id, DbTime.AsUtc(r.CreatedAt), DbTime.AsUtc(r.ExpiresAt), r.IpAddress, r.UserAgent,
-            !string.IsNullOrEmpty(r.SamlNameId) ? SessionVia.Saml : r.PleasanterUserId is not null ? SessionVia.Pleasanter : SessionVia.Password))];
+            !string.IsNullOrEmpty(r.Via) ? r.Via : !string.IsNullOrEmpty(r.SamlNameId) ? SessionVia.Saml : r.PleasanterUserId is not null ? SessionVia.Pleasanter : SessionVia.Password))];
     }
 
     public async Task<bool> DeleteByHandleAsync(Guid userId, string handle, CancellationToken cancellationToken = default)
@@ -310,6 +354,8 @@ public sealed class AdminSessionStore(IDbConnectionFactory connections, TimeProv
         public string? SamlNameId { get; set; }
 
         public int? PleasanterUserId { get; set; }
+
+        public string? Via { get; set; }
     }
 
     private sealed class FindRow

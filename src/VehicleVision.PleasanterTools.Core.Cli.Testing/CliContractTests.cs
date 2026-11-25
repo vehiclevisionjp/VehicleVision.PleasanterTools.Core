@@ -58,10 +58,6 @@ public abstract class CliContractTests
     [Fact]
     public Task バージョンは1行で出る() => VerifyAsync(CliContractRules.Version);
 
-    /// <summary>旧名の検出。</summary>
-    [Fact]
-    public Task 旧名は検出して案内する() => VerifyAsync(CliContractRules.LegacyEnvironment);
-
     /// <summary>秘密を出さない。</summary>
     [Fact]
     public Task 秘密は出力に出ない() => VerifyAsync(CliContractRules.Secrets);

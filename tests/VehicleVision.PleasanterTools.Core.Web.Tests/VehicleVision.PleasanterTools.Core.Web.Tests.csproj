@@ -14,6 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 参照ホスト（パスキーの契約を流す）が Core.Data のストアを包む。Core.Web 本体は Core.Data を参照しない -->
+    <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Data\VehicleVision.PleasanterTools.Core.Data.csproj" />
     <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Web\VehicleVision.PleasanterTools.Core.Web.csproj" />
     <ProjectReference Include="..\..\src\VehicleVision.PleasanterTools.Core.Web.Testing\VehicleVision.PleasanterTools.Core.Web.Testing.csproj" />
   </ItemGroup>

@@ -29,6 +29,7 @@
    アプリが古い版を参照している限り、**ばらつきは直っていない**
 10. **`{}` を省略しない。** `if` / `else` / `for` / `foreach` / `while` / `using` / `lock` などの本文も、
    1 行で済む場合も同じ。C# は `.editorconfig` とビルドで、TypeScript・Svelte は ESLint の `curly` で強制する。
+11. 用語は、一般に通じるカタカナ語を無理に漢字へ訳さない。「ボタン」を釦と書かず、「プレビュー」「スクリーンショット」「インポート」「エクスポート」を使う（下見・写し・取り込み・書き出しと書かない）。識別子（クラス名・設定名・ファイル名など）は変えない。
 
 <!-- AGENT-RULES:END -->
 
@@ -43,6 +44,11 @@ Questionnaire ほか）が共通で使う、コア部分の実装。** アプリ
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・接続の暗号化検査・起動時マイグレーションと排他 |
 | `VehicleVision.PleasanterTools.Core.Web` | Web 層の部品（Pleasanter のログインで本人を確かめる問い合わせ） |
+| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名）。定数だけで、処理を持たない |
+| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・補完）。BCL と `Core.Contracts` だけに依存 |
+| `VehicleVision.PleasanterTools.Core.Cli.Testing` | CLI の契約テスト（xUnit。各ツールが自分のテストで回す）。仕様は [`_documents/CLIの共通仕様書.md`](../_documents/CLIの共通仕様書.md) |
+
+`Core.Web.Testing`（管理画面の HTTP 契約の試験用）も同じ接頭辞で公開している。
 
 - 言語・ランタイムは **Pleasanter 本体と各アプリに揃える**。`global.json` は各アプリと同じ値に保つ
   （`ci.yml` が一致を検査する）

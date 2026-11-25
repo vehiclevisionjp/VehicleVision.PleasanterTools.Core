@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace VehicleVision.PleasanterTools.Core.Web;
 
-/// <summary>認証設定の誤り。アプリは種類と引数を自分の多言語メッセージへ写し替えられる。</summary>
+/// <summary>認証設定の誤り。アプリは種類と引数を自分の多言語メッセージへ変換できる。</summary>
 public sealed class AuthenticationSettingException : InvalidOperationException
 {
     internal AuthenticationSettingException(
@@ -59,4 +59,10 @@ public enum AuthenticationSettingError
     CertificateNotFound,
     /// <summary>base64 の証明書を読めない（設定名）。元の例外は InnerException。</summary>
     CertificateUnreadable,
+    /// <summary>パスキーの RP ID の誤り（設定名、値）。ホスト名だけを書く。</summary>
+    PasskeyRpIdInvalid,
+    /// <summary>パスキーの Origin の誤り（設定名、値）。https（開発の localhost だけ http）の「スキーム://ホスト[:ポート]」。</summary>
+    PasskeyOriginInvalid,
+    /// <summary>パスキーの Origin のホストが RP ID と一致も従属もしない（Origin の設定名、Origin、RP ID の設定名、RP ID）。</summary>
+    PasskeyOriginRpIdMismatch,
 }

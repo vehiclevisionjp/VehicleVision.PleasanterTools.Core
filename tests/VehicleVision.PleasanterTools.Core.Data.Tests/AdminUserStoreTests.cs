@@ -230,7 +230,7 @@ public sealed class AdminUserStoreTests : DatabaseTestBase
         var b = (await store.CreateAsync(NewLoginId(), "hash", "Editor", "ja"))!;
         await store.EnableTotpAsync(a.Id, "SECRET-A", 1, []);
 
-        // 暗号文は利用者 ID とアプリ ID に束縛されている（DB の列を別の行へ写しても読めない）
+        // 暗号文は利用者 ID とアプリ ID に束縛されている（DB の列を別の行へコピーしても読めない）
         var factory = MigratedFactoryFor(provider);
         using var connection = factory.Create();
         var cipherOfA = Dapper.SqlMapper.ExecuteScalar<string>(

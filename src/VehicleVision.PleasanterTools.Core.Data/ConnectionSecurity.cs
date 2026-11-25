@@ -44,7 +44,7 @@ public static class ConnectionSecurity
                 // *調べるために* 解析している所まで指摘してしまう（cs/insecure-sql-connection）。
                 // 汎用のパーサなら同じ解析ができて、その誤検知が起きない。
                 //
-                // **既定値はここに書き写している。** 版が上がって既定が変わったら直すこと
+                // **既定値はここにコピーしている。** 版が上がって既定が変わったら直すこと
                 // （Microsoft.Data.SqlClient 4.0 以降の既定は Encrypt=true）。
                 var builder = new System.Data.Common.DbConnectionStringBuilder
                 {

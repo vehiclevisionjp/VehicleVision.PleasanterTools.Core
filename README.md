@@ -10,7 +10,9 @@ PleasanterTools は、ノーコード／ローコード業務基盤 [Pleasanter]
 **「孫の手」として当社が作っているツール群**です。
 運営: 株式会社ピー・エム・シー ITソリューション事業部 / PMC Co., Ltd. IT Solution Div.
 Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[Core.Web][nuget-web]・
-[Core.Web.Testing][nuget-testing] を nuget.org で公開しています（安定版 0.1.0。1.0.0 未満のため互換は保証しません）。
+[Core.Contracts][nuget-contracts]・[Core.Cli][nuget-cli] と、試験用の
+[Core.Web.Testing][nuget-testing]・[Core.Cli.Testing][nuget-cli-testing] を nuget.org で公開しています
+（安定版 0.2.0。1.0.0 未満のため互換は保証しません）。
 
 ### ファミリーの一覧
 
@@ -30,9 +32,9 @@ Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[C
 | [BinaryMigrator][repo-binarymigrator] | 添付ファイルの保管先を Rds・Local・AzureBlob 間で移行 | ツール | [デュアル][license-binarymigrator] | 開発中 | なし |
 | [DatabaseConverter][repo-databaseconverter] | Pleasanter の DB を SQL Server・PostgreSQL・MySQL 間で変換 | ツール | [デュアル][license-databaseconverter] | 開発中 | なし |
 | [DotNetClient][repo-dotnetclient] | Pleasanter の標準 Web API を呼ぶ .NET クライアント | ライブラリ | LGPL | 開発中 | なし |
-| [FeedIngest][repo-feedingest] | RSS / Atom を取り込み、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
-| [MailIngest][repo-mailingest] | POP3 / IMAP のメールを取り込み、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
-| [Core][repo-core] | 各ツールの DB・メール・Web・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.1.0 | 提供元 |
+| [FeedIngest][repo-feedingest] | RSS / Atom をインポートし、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
+| [MailIngest][repo-mailingest] | POP3 / IMAP のメールをインポートし、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
+| [Core][repo-core] | 各ツールの DB・メール・Web・CLI・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.2.0 | 提供元 |
 | Template（社内テンプレート） | 新しいツールのひな形と共通の開発運用を提供 | ツール | AGPL | 開発中（社内用） | なし |
 
 ### 名前の付け方
@@ -54,7 +56,7 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 |---|---|
 | テンプレート | 社内 Template から新しいツールを作り、名前と資料・設定を実態に合わせます。[作成の流れ][family-operations] |
 | CI・ブランチ・リリース | CI を通して `develop` → `master`、タグ `vX.Y.Z` で公開します。[ブランチ運用][branch-policy]・[リリース手順][release-guide] |
-| patch 更新 | npm・NuGet の patch 更新を、ロックファイル・NOTICE と合わせて PR にし、必須チェック通過後に自動適用します。[更新の流れ][family-operations] |
+| 依存の更新 | npm・NuGet は人が必要なときにまとめて更新します。GitHub Actions は Dependabot、脆弱性は監査と dependency-review が検知します。[運用の情報][family-operations] |
 | 設定の監査 | 共通の GitHub 設定やファイル・Core 参照版の差を読み取り専用で調べ、自動修復はしません。[監査の範囲][family-operations] |
 | 管理画面 | アプリ間で揃える認証・権限・設定などを定めています（各アプリへ反映中）。[共通仕様書][admin-spec] |
 | 契約テスト | Core.Web.Testing で管理画面の HTTP 契約を共有し、Questionnaire の試験で採用しています。[契約テストの方針][contract-policy] |
@@ -72,7 +74,10 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 | `VehicleVision.PleasanterTools.Core.Mail` | メール送信（SMTP / Amazon SES / Azure Communication Services）と設定の読み取り |
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
 | `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表 |
+| `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名）。定数だけで、処理を持たない |
+| `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・シェル補完）。[CLI の共通仕様書][cli-spec] |
 | `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は 0.1.0 に含まれる。追加の安全性契約は未公開 |
+| `VehicleVision.PleasanterTools.Core.Cli.Testing` | 試験用。CLI の契約テストの xUnit 基底クラス（ヘルプ・エラーの ASCII、結果の出力先、終了コード表など）。各ツールが自分のテストで回す |
 
 対応 RDBMS は SQL Server / PostgreSQL / MySQL（本番）と SQLite（簡易セットアップ・デバッグ用）です。
 
@@ -121,7 +126,7 @@ var saml = SamlOptions.FromConfiguration(
 // DB と外部設定を合成する場合は FromValues(valueOf, 設定キー型, …) を使う。
 var keys = new PleasanterSsoSettingKeys("APP_");
 // 設定の誤りは AuthenticationSettingException（InvalidOperationException の派生）。
-// Error と Arguments から、アプリの多言語例外へ写し替えられる。
+// Error と Arguments から、アプリの多言語例外へ変換できる。
 
 if (MigrationCommand.IsRequested(args))
 {
@@ -170,27 +175,33 @@ TOTP の不正な入力・共有鍵は不一致です。同じ時間枠の再使
 
 ## 配布と参照（nuget.org）
 
-nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.Mail` / `.Data` / `.Web` / `.Web.Testing`）。
+nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.` で始まるパッケージ。一覧は上の「パッケージ」）。
 **認証なしで取得できる**ので、参照するリポジトリは、`PackageReference` を書くだけです
 （`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.1.0" />
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.2.0" />
 ```
 
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`][release-guide]
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
-- **安定版 0.1.0 を 2026-10-30 に公開しました**（タグ `v0.1.0`。当時のパッケージはすべて同じ版）。
+- **安定版 0.2.0 を 2026-11-11 に公開しました**（タグ `v0.2.0`。パッケージはすべて同じ版。
+  Contracts・Cli・Cli.Testing は 0.2.0 が初めての公開）。
+  その前の安定版 0.1.0 は 2026-10-30 に公開しました（タグ `v0.1.0`。当時のパッケージはすべて同じ版）。
   プレビュー版は、Mail・Data が preview.2〜15、Web が preview.10〜15、Web.Testing が preview.11〜15 です
 - 0.1.0-preview.1 だけは GitHub Packages に公開しました（認証が要る）
-- 2026-10-30 に各パッケージの版一覧を確認しました。
-  [Mail][mail-versions] / [Data][data-versions] / [Web][web-versions] / [Web.Testing][testing-versions]
+- 各パッケージの版一覧は nuget.org で確認できます。
+  [Mail][mail-versions] / [Data][data-versions] / [Web][web-versions] / [Web.Testing][testing-versions] /
+  [Contracts][contracts-versions] / [Cli][cli-versions] / [Cli.Testing][cli-testing-versions]
 
 [mail-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.mail/index.json
 [data-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.data/index.json
 [web-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web/index.json
 [testing-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.web.testing/index.json
+[contracts-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.contracts/index.json
+[cli-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.cli/index.json
+[cli-testing-versions]: https://api.nuget.org/v3-flatcontainer/vehiclevision.pleasantertools.core.cli.testing/index.json
 
 ## バージョン
 
@@ -249,11 +260,15 @@ dotnet test
 [nuget-mail]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Mail
 [nuget-web]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Web
 [nuget-testing]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Web.Testing
+[nuget-contracts]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Contracts
+[nuget-cli]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Cli
+[nuget-cli-testing]: https://www.nuget.org/packages/VehicleVision.PleasanterTools.Core.Cli.Testing
 [family-operations]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/ファミリーの共通運用の情報.md
 [branch-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/ブランチ運用方針.md
 [release-guide]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/リリース手順書.md
 [admin-spec]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/管理画面の共通仕様書.md
 [contract-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/管理画面の共通仕様/契約テストの方針.md
+[cli-spec]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/CLIの共通仕様書.md
 [core-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/コア化の方針.md
 [web-policy]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/_documents/Core.Web-共通化の方針.md
 [contributing]: https://github.com/vehiclevisionjp/VehicleVision.PleasanterTools.Core/blob/develop/CONTRIBUTING.md

@@ -160,7 +160,7 @@ Core はアプリの役割名を知らず、渡された一覧に大小を無視
   **発行者・宛先・署名証明書の固定、SHA-1 の拒否、無効時の例外を変えないこと**
 - アプリ固有のマイグレーション、接続先の解決、自動適用の設定・Web 起動処理
 
-### 例外の写し替え（A/C）
+### 例外の変換（A/C）
 
 `AuthenticationSettingException` を捕まえ、次の文言の鍵と `Arguments`（同じ順序）を渡して
 `SettingException` にする。証明書の元の例外も渡す。日本語文言そのものを解析しない。
@@ -228,7 +228,7 @@ Core 側の出力・終了コード・状態確認の副作用は
 1. **Core の作業では置き換えない。** Core.Data / Core.Web を 0.1.0 以降に揃える作業を、各アプリで行う（preview.12 は公開済み）
 2. 設定キー型へ既存のアプリ接頭辞を渡す。アプリの `const` は残し、Core が導いたキーと一致することを試験する
 3. A/C は `AdminRoles.All` と `AdminRoles.Editor`、既存の cookie 接頭辞を渡す。
-   前節の例外の写し替えを挟む。多言語の管理 API の結合試験を残す
+   前節の例外の変換を挟む。多言語の管理 API の結合試験を残す
 4. Q は `Enum.GetNames<AdminRole>()` と `Editor`、`q.` を渡す。
    **`REGISTERROLE` の値を要求されたときだけ、既存の `ParseEnum<AdminRole>` で読み、正規名にして返す。**
    SSO の数値拒否と SAML の数値許可、両方の複合表記の許可をそのまま残す。
@@ -347,7 +347,7 @@ preview.14 の API を使うアプリはなく、preview.15 向けの破壊的�
 | `new SecretProtector(base64Key)` | `Protect(plain, context)`・`Unprotect(cipher, context)`。新規は文脈必須の `v2$`。3 書式を読み、復号失敗は null。文脈なしの overload は廃止。`DecodeKey`・明示的な `GenerateKey` は維持。設定名はアプリで例外へ添える |
 | `RecoveryCode` | `Count`・`Generate`・`Normalize`・`Hash`・`Verify(code, stored)`。新規は PBKDF2-SHA512・210000 回・塩 16・導出 64 バイト、既存 32 バイトも検証。使い切りの DB 更新やレート制限はアプリに残す |
 | `InvitationToken` | `Create`・`Hash(token, trim)`・任意の `LooksValid`。ハッシュは小文字 16 進のみ。DB の検索や招待の寿命はアプリが担う |
-| `AdminPermissions<TRole>` | コンストラクターに役割から権限列への表と任意の役割比較器を渡す。表を不変に写し、`Of`・`Has`・静的な `PolicyOf` を提供。役割・権限名・既定の表は持たない |
+| `AdminPermissions<TRole>` | コンストラクターに役割から権限列への表と任意の役割比較器を渡す。表を不変にコピーし、`Of`・`Has`・静的な `PolicyOf` を提供。役割・権限名・既定の表は持たない |
 
 **パスワードの受理条件は厳しい側に統一する。**
 空・null は `Hash` で例外、`Verify` で `(false, false)`。
@@ -401,7 +401,7 @@ preview.15 と 0.1.0 は公開済み。各アプリは別作業で追随する�
 
 1. A/C/Q は公開後に Core.Web を他の Core パッケージと同じ版へ上げる。
    ハッシュと TOTP は引数なし、暗号は鍵だけで登録し、方式の enum は渡さない。
-   tuple と bool／`out` の写し替え、ログカテゴリの維持はアプリの薄いアダプターに残す。
+   tuple と bool／`out` の変換、ログカテゴリの維持はアプリの薄いアダプターに残す。
    A/C は復号例外の catch だけに頼らず、null を明示的な失敗として判定する。
 2. パスワードの既存値は一括変換しない。照合成功時の `NeedsRehash` で現行回数・64 バイトへ更新する。
    32 バイトは回数が現行以上でも更新対象。A/C の捨てハッシュは空でない合成値で起動時に作る。
