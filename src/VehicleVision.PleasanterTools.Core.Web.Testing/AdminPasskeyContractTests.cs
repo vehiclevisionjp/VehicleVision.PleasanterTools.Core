@@ -197,22 +197,26 @@ public abstract class AdminPasskeyContractTests : IAsyncLifetime
         var first = new VirtualPasskeyAuthenticator();
         var second = new VirtualPasskeyAuthenticator();
         using var client = await SessionAsync(admin);
-        Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, admin, first)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, admin, second)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, admin, first, name: "first")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, admin, second, name: "second")).StatusCode);
         var passkeys = await ListAsync(client);
         Assert.Equal(2, passkeys.Count);
 
-        using var none = await PostAsync(client, Settings.Remove(passkeys[0].Id), new { });
+        // 一覧の並びには頼らない（同じ時刻に登録した 2 件は、並びが一定でない。#225）。名前で、どの認証器の行かを決める
+        var firstRow = passkeys.Single(p => p.Name == "first");
+        var secondRow = passkeys.Single(p => p.Name == "second");
+
+        using var none = await PostAsync(client, Settings.Remove(firstRow.Id), new { });
         Assert.Equal(HttpStatusCode.Unauthorized, none.StatusCode);
         Assert.Equal(2, (await ListAsync(client)).Count);
 
-        using var byPassword = await PostAsync(client, Settings.Remove(passkeys[0].Id), new { password = admin.Password });
-        Assert.Equal(HttpStatusCode.OK, byPassword.StatusCode);
+        using var byPassword = await PostAsync(client, Settings.Remove(firstRow.Id), new { password = admin.Password });
+        await ExpectAsync(HttpStatusCode.OK, byPassword);
 
-        // パスキーによる再認証（ログインのオプションへ応答した、本人の資格情報）
+        // パスキーによる再認証（ログインのオプションへ応答した、本人の資格情報）。消さずに残した second の資格情報で行う
         var proof = await AssertionAsync(client, second);
-        using var byPasskey = await PostAsync(client, Settings.Remove(passkeys[1].Id), new { assertion = JsonNode.Parse(proof) });
-        Assert.Equal(HttpStatusCode.OK, byPasskey.StatusCode);
+        using var byPasskey = await PostAsync(client, Settings.Remove(secondRow.Id), new { assertion = JsonNode.Parse(proof) });
+        await ExpectAsync(HttpStatusCode.OK, byPasskey);
         Assert.Empty(await ListAsync(client));
     }
 
@@ -652,7 +656,7 @@ public abstract class AdminPasskeyContractTests : IAsyncLifetime
 
     private async Task<HttpResponseMessage> RegisterAsync(
         HttpClient client, SeededAdmin admin, VirtualPasskeyAuthenticator authenticator,
-        VirtualPasskeyAuthenticator.Tamper? tamper = null)
+        VirtualPasskeyAuthenticator.Tamper? tamper = null, string name = "仕事用 PC")
     {
         using var begin = await PostAsync(client, Settings.RegisterBegin, new { password = admin.Password });
         if (begin.StatusCode != HttpStatusCode.OK)
@@ -661,7 +665,7 @@ public abstract class AdminPasskeyContractTests : IAsyncLifetime
         }
 
         var attestation = authenticator.Create(await begin.Content.ReadAsStringAsync(), Host.Origin, tamper);
-        return await PostAsync(client, Settings.RegisterComplete, new { credential = JsonNode.Parse(attestation), name = "仕事用 PC" });
+        return await PostAsync(client, Settings.RegisterComplete, new { credential = JsonNode.Parse(attestation), name });
     }
 
     private async Task<string> LoginOptionsAsync(HttpClient client)
@@ -680,6 +684,15 @@ public abstract class AdminPasskeyContractTests : IAsyncLifetime
         var options = await LoginOptionsAsync(client);
         var assertion = authenticator.Get(options, Host.Origin, tamper);
         return await PostAsync(client, Settings.LoginComplete, new { credential = JsonNode.Parse(assertion) });
+    }
+
+    /// <summary>期待した状態か。違うときは、応答の本文（<c>code</c>＝失敗の理由）を失敗メッセージへ載せる。</summary>
+    private static async Task ExpectAsync(HttpStatusCode expected, HttpResponseMessage response)
+    {
+        if (response.StatusCode != expected)
+        {
+            Assert.Fail($"期待 {(int)expected} {expected}、実際 {(int)response.StatusCode} {response.StatusCode}。本文: {await response.Content.ReadAsStringAsync()}");
+        }
     }
 
     private static Task<HttpResponseMessage> PostAsync(HttpClient client, string path, object body) =>
