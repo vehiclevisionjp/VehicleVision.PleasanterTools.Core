@@ -39,6 +39,22 @@ public sealed class AdminSessionStoreTests : DatabaseTestBase
 
     [Theory]
     [EnabledDatabases]
+    public async Task 入った方式を残したセッションは_一覧で_passkey_と出る_残さないものは従来どおり(DatabaseProvider provider)
+    {
+        var (store, _, _) = StoreFor(provider);
+        var userId = Guid.NewGuid();
+
+        await store.CreateWithViaAsync(userId, AdminSessionKinds.Session, TimeSpan.FromHours(8), SessionVia.Passkey);
+        await store.CreateAsync(userId, AdminSessionKinds.Session, TimeSpan.FromHours(8));
+
+        var list = await store.ListForUserAsync(userId);
+        Assert.Equal(2, list.Count);
+        Assert.Equal(1, list.Count(i => i.Via == SessionVia.Passkey));
+        Assert.Equal(1, list.Count(i => i.Via == SessionVia.Password));
+    }
+
+    [Theory]
+    [EnabledDatabases]
     public async Task 期限切れと未知の_ID_は引けない(DatabaseProvider provider)
     {
         var (store, time, _) = StoreFor(provider);
