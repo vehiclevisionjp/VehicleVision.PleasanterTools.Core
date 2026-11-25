@@ -12,7 +12,7 @@ namespace VehicleVision.PleasanterTools.Core.Web;
 /// **構造化ログでも、書き出し先が平文なら同じことが起きる。**
 /// </para>
 /// <para>
-/// Questionnaire の <c>LogSafe</c> の写し。**Core.Web の中だけで使う**（公開 API にしない）。
+/// Questionnaire の <c>LogSafe</c> のコピー。**Core.Web の中だけで使う**（公開 API にしない）。
 /// </para>
 /// <para>
 /// **長さも切る。** 長大な値を投げ込まれると、ログが埋まって他が読めなくなる。
