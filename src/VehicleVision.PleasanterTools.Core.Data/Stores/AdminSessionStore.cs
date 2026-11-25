@@ -20,6 +20,9 @@ public static class SessionVia
     public const string Password = "password";
     public const string Saml = "saml";
     public const string Pleasanter = "pleasanter";
+
+    /// <summary>パスキーで入った（パスワードの代わりに 1 回で入る。2 要素は満たす扱い）。</summary>
+    public const string Passkey = "passkey";
 }
 
 /// <summary>ログイン中の端末 1 つ分（サーバ側セッション）。</summary>
