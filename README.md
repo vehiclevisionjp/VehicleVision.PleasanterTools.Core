@@ -12,7 +12,7 @@ PleasanterTools は、ノーコード／ローコード業務基盤 [Pleasanter]
 Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[Core.Web][nuget-web]・
 [Core.Contracts][nuget-contracts]・[Core.Cli][nuget-cli] と、試験用の
 [Core.Web.Testing][nuget-testing]・[Core.Cli.Testing][nuget-cli-testing] を nuget.org で公開しています
-（安定版 0.2.0。1.0.0 未満のため互換は保証しません）。
+（安定版 0.3.0。1.0.0 未満のため互換は保証しません）。
 
 ### ファミリーの一覧
 
@@ -34,7 +34,7 @@ Core は共通部品で、[Core.Data][nuget-data]・[Core.Mail][nuget-mail]・[C
 | [DotNetClient][repo-dotnetclient] | Pleasanter の標準 Web API を呼ぶ .NET クライアント | ライブラリ | LGPL | 開発中 | なし |
 | [FeedIngest][repo-feedingest] | RSS / Atom をインポートし、Pleasanter のレコードを作成・更新 | ツール | AGPL | 開発中 | なし |
 | [MailIngest][repo-mailingest] | POP3 / IMAP のメールをインポートし、Pleasanter のレコードを作成・更新 | ツール | [デュアル][license-mailingest] | 開発中 | なし |
-| [Core][repo-core] | 各ツールの DB・メール・Web・CLI・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.2.0 | 提供元 |
+| [Core][repo-core] | 各ツールの DB・メール・Web・CLI・契約テストの共通部品 | ライブラリ | [デュアル][license-core] | v0.3.0 | 提供元 |
 | Template（社内テンプレート） | 新しいツールのひな形と共通の開発運用を提供 | ツール | AGPL | 開発中（社内用） | なし |
 
 ### 名前の付け方
@@ -180,13 +180,17 @@ nuget.org へ配布します（`VehicleVision.PleasanterTools.Core.` で始ま�
 （`nuget.config` の追加も、トークンも要りません）。
 
 ```xml
-<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.2.0" />
+<PackageReference Include="VehicleVision.PleasanterTools.Core.Mail" Version="0.3.0" />
 ```
 
 - 公開は、タグ `vX.Y.Z` の push で `release.yml` が行います（Trusted Publishing。API キーは持ちません）。
   手順は [`_documents/リリース手順書.md`][release-guide]
 - **nuget.org に出した版は削除できません**（非推奨にできるだけ）。壊したまま出すより、出さない方が安い
-- **安定版 0.2.0 を 2026-11-11 に公開しました**（タグ `v0.2.0`。パッケージはすべて同じ版。
+- **安定版 0.3.0 を 2026-11-25 に公開しました**（タグ `v0.3.0`。パッケージ 7 本はすべて同じ版）。
+  管理画面のパスキー（WebAuthn）の API・ストア・移行（`M10008`・`M10009`）と、依存の更新を含みます。
+  `Core.Data` の移行を回すアプリは、0.3.0 へ上げると、起動時の移行で空の表 2 つ（`Core_AdminPasskeys`・`Core_AdminPasskeyChallenges`）が作られ、
+  `Core_AdminSessions` に NULL 可の `Via` 列が足されます（移行の権限を確認してください）。
+  その前の安定版 0.2.0 は 2026-11-11 に公開しました（タグ `v0.2.0`。パッケージはすべて同じ版。
   Contracts・Cli・Cli.Testing は 0.2.0 が初めての公開）。
   その前の安定版 0.1.0 は 2026-10-30 に公開しました（タグ `v0.1.0`。当時のパッケージはすべて同じ版）。
   プレビュー版は、Mail・Data が preview.2〜15、Web が preview.10〜15、Web.Testing が preview.11〜15 です
