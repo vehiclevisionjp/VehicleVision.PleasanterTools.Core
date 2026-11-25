@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace VehicleVision.PleasanterTools.Core.Web;
 
-/// <summary>認証設定の誤り。アプリは種類と引数を自分の多言語メッセージへ写し替えられる。</summary>
+/// <summary>認証設定の誤り。アプリは種類と引数を自分の多言語メッセージへ変換できる。</summary>
 public sealed class AuthenticationSettingException : InvalidOperationException
 {
     internal AuthenticationSettingException(
