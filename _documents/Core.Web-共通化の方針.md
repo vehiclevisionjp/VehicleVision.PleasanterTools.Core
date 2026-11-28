@@ -303,7 +303,7 @@ preview.14 の API を使うアプリはなく、preview.15 向けの破壊的�
 | `AdminPasswordPolicy` | なし（1.000） | 0.331 | **保留。** A/C は上限 256、Q は上限なし。空の扱い・ログイン ID が空の条件も異なる。A/C は文言がなければ先頭も使い、Q は言語正規化後に一致／指定なしを選ぶ。正規表現の方式は共通でも、今回未決の上限・文言を揃えない |
 | `Totp` / `TotpService` | なし（1.000） | 0.246 | **移した。** 計算は同じ Otp.NET、20 バイト・6 桁・30 秒・SHA-1・前後 1 枠。旧 A/C は数字以外を全除去、Q は前後空白だけを除去。Issue #99 で空白と ASCII ハイフンだけを除き ASCII 数字 6 桁を照合する。不正な Base32 は不一致、登録 URI は要素別エスケープへ統一。時刻は引数 |
 | 復旧コード（上記ファイル内） | なし | 上記に含む | **U12 で移した。** A/C は L を含む 32 文字種・SHA-256、Q は L も除く 31 文字種・32 バイトの PBKDF2。新規は同じ文字種・正規化のまま統合後の 64 バイト PBKDF2。既存の 32 バイトも照合する。旧 SHA-256 は受理しない |
-| `SecretProtector` | なし（1.000） | 0.394 | **移した。** AES-256-GCM、nonce 12・tag 16 は共通。旧 A/C の `v1:` は結合 Base64・文脈必須、Q の `v1$` は AAD なし、`v2$` は文脈を AAD にする。Issue #99 で 3 書式の読み取りを統合。新規は文脈必須の `v2$` のみ、失敗は旧 A/C も含め null |
+| `SecretProtector` | なし（1.000） | 0.394 | **移した。** AES-256-GCM、nonce 12・tag 16 は共通。旧 A/C の `v1:` は結合 Base64・文脈必須、Q の `v1$` は AAD なし、`v2$` は文脈を AAD にする。Issue #99 で 3 書式の読み取りを統合。新規は文脈必須の `v2$` のみ、失敗は旧 A/C も含め null。**Issue #232 で本体を ASP.NET Core 非依存の `Core.Security` へ移した**（書式・AAD・鍵の扱いは不変。`Core.Web` の同名の型は互換の委譲として残し、1.0.0 までに外す） |
 | `InviteTokens` / `InvitationToken` | なし（1.000） | 0.308 | **U5 で移した。** 32 バイトの base64url は同じ。Q は前後空白除去後に SHA-256 を Base64、A/C は空白を除去せず小文字 16 進。保存は小文字 16 進に統一し、空白除去は必須の `trim` 引数で分ける。A/C の 20〜100 文字の事前検査は任意の別メソッドとして残す |
 | `ParameterFiles` | 多数（0.388） | 0.443 | **保留。** 接頭辞と一覧だけでは吸収できない。秘密ファイルの対象・相対パス・空の直接指定・末尾改行の数・空白のパス・別名の衝突規則も違う（次節） |
 | `AdminPermissions` | なし（1.000） | 0.340 | **表の仕組みだけ移した。** A/C は大小を区別する文字列、Q は列挙。Q の文字列解釈は定義された数値や一部の複合表記も通し得るため、解釈はアプリに残す。権限名は Ordinal、未知の役割は空という共通の表引きだけを汎用化した |
@@ -344,7 +344,7 @@ preview.14 の API を使うアプリはなく、preview.15 向けの破壊的�
 |---|---|
 | `new PasswordHasher()` | `Hash(password, iterations = 210000)`・`Verify(password, stored)`（成功と再ハッシュの tuple）・`NeedsRehash(stored)`。32・64 バイトを照合、新規は 64 バイト。捨てハッシュはアプリが起動時に 1 回生成する |
 | `new TotpService()` | `GenerateSecret()`・`BuildUri(issuer, loginId, secret)`・`Verify(secret, code, utcNow)`（成功と時間枠の tuple）。空白・ASCII ハイフンだけを除去。URI は `Uri.EscapeDataString` で要素別に符号化 |
-| `new SecretProtector(base64Key)` | `Protect(plain, context)`・`Unprotect(cipher, context)`。新規は文脈必須の `v2$`。3 書式を読み、復号失敗は null。文脈なしの overload は廃止。`DecodeKey`・明示的な `GenerateKey` は維持。設定名はアプリで例外へ添える |
+| `new SecretProtector(base64Key)`（`Core.Security`。`Core.Web` の同名の型は委譲） | `Protect(plain, context)`・`Unprotect(cipher, context)`。新規は文脈必須の `v2$`。3 書式を読み、復号失敗は null。文脈なしの overload は廃止。`DecodeKey`・明示的な `GenerateKey` は維持。設定名はアプリで例外へ添える |
 | `RecoveryCode` | `Count`・`Generate`・`Normalize`・`Hash`・`Verify(code, stored)`。新規は PBKDF2-SHA512・210000 回・塩 16・導出 64 バイト、既存 32 バイトも検証。使い切りの DB 更新やレート制限はアプリに残す |
 | `InvitationToken` | `Create`・`Hash(token, trim)`・任意の `LooksValid`。ハッシュは小文字 16 進のみ。DB の検索や招待の寿命はアプリが担う |
 | `AdminPermissions<TRole>` | コンストラクターに役割から権限列への表と任意の役割比較器を渡す。表を不変にコピーし、`Of`・`Has`・静的な `PolicyOf` を提供。役割・権限名・既定の表は持たない |
