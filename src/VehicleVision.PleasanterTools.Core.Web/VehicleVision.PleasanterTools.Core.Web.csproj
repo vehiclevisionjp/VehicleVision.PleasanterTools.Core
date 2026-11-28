@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 秘密の暗号化の本体。ASP.NET Core 非依存の置き場（CLI からも参照できる）。Core.Web の SecretProtector は互換の委譲 -->
+    <ProjectReference Include="..\VehicleVision.PleasanterTools.Core.Security\VehicleVision.PleasanterTools.Core.Security.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Fido2" />
     <PackageReference Include="Otp.NET" />
   </ItemGroup>
