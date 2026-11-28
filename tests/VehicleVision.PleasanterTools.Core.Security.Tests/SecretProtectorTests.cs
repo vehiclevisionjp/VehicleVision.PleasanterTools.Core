@@ -1,16 +1,16 @@
-namespace VehicleVision.PleasanterTools.Core.Web.Tests;
+namespace VehicleVision.PleasanterTools.Core.Security.Tests;
 
 public sealed class SecretProtectorTests
 {
-    private readonly SecretProtector protector = new(AuthenticationCompatibilityValues.Key);
-    private const string Context = AuthenticationCompatibilityValues.Context;
+    private readonly SecretProtector protector = new(SecretCompatibilityValues.Key);
+    private const string Context = SecretCompatibilityValues.Context;
 
     [Theory]
-    [InlineData(AuthenticationCompatibilityValues.Packed)]
-    [InlineData(AuthenticationCompatibilityValues.DelimitedV2)]
+    [InlineData(SecretCompatibilityValues.Packed)]
+    [InlineData(SecretCompatibilityValues.DelimitedV2)]
     public void 既存の文脈つき暗号文を同じ鍵と文脈だけで読める(string stored)
     {
-        Assert.Equal(AuthenticationCompatibilityValues.Secret, protector.Unprotect(stored, Context));
+        Assert.Equal(SecretCompatibilityValues.Secret, protector.Unprotect(stored, Context));
         Assert.Null(protector.Unprotect(stored, "wrong"));
         Assert.Null(protector.Unprotect(stored, null));
         Assert.Null(protector.Unprotect(stored, ""));
@@ -23,8 +23,8 @@ public sealed class SecretProtectorTests
     [InlineData(Context)]
     public void 旧v1区切り暗号文だけは文脈を問わず読める(string? context)
     {
-        Assert.Equal(AuthenticationCompatibilityValues.Secret,
-            protector.Unprotect(AuthenticationCompatibilityValues.DelimitedV1, context));
+        Assert.Equal(SecretCompatibilityValues.Secret,
+            protector.Unprotect(SecretCompatibilityValues.DelimitedV1, context));
     }
 
     [Theory]
@@ -84,9 +84,9 @@ public sealed class SecretProtectorTests
     }
 
     [Theory]
-    [InlineData(AuthenticationCompatibilityValues.Packed)]
-    [InlineData(AuthenticationCompatibilityValues.DelimitedV1)]
-    [InlineData(AuthenticationCompatibilityValues.DelimitedV2)]
+    [InlineData(SecretCompatibilityValues.Packed)]
+    [InlineData(SecretCompatibilityValues.DelimitedV1)]
+    [InlineData(SecretCompatibilityValues.DelimitedV2)]
     public void 旧3書式すべてで別の鍵とnonceとtagと暗号文の改ざんを拒否する(string stored)
     {
         var differentKey = new SecretProtector(SecretProtector.GenerateKey());
@@ -114,16 +114,16 @@ public sealed class SecretProtectorTests
     }
 
     [Theory]
-    [InlineData(AuthenticationCompatibilityValues.Packed)]
-    [InlineData(AuthenticationCompatibilityValues.DelimitedV1)]
-    [InlineData(AuthenticationCompatibilityValues.DelimitedV2)]
+    [InlineData(SecretCompatibilityValues.Packed)]
+    [InlineData(SecretCompatibilityValues.DelimitedV1)]
+    [InlineData(SecretCompatibilityValues.DelimitedV2)]
     public void 旧保存値を読み直して保存すると文脈必須のv2になる(string stored)
     {
         var plain = protector.Unprotect(stored, Context);
         Assert.NotNull(plain);
         var updated = protector.Protect(plain, Context);
         Assert.StartsWith("v2$", updated, StringComparison.Ordinal);
-        Assert.Equal(AuthenticationCompatibilityValues.Secret, protector.Unprotect(updated, Context));
+        Assert.Equal(SecretCompatibilityValues.Secret, protector.Unprotect(updated, Context));
         Assert.Null(protector.Unprotect(updated, "different"));
     }
 

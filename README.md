@@ -75,6 +75,7 @@ DotNetClient をアプリへ組み込んで広く使ってもらうための選�
 | `VehicleVision.PleasanterTools.Core.Data` | DB 接続・方言差・暗号化検査・マイグレーションと排他・適用／状態確認のコマンド |
 | `VehicleVision.PleasanterTools.Core.Web` | Pleasanter の cookie による本人確認、SSO・SAML の設定の読み取りと検証、パスワード・TOTP・秘密の暗号化・復旧コード・招待・権限表 |
 | `VehicleVision.PleasanterTools.Core.Contracts` | 製品群で共通の値（終了コードの値・`VVPT_PLEASANTER_*` の環境変数名）。定数だけで、処理を持たない |
+| `VehicleVision.PleasanterTools.Core.Security` | 秘密の暗号化（`SecretProtector`。AES-256-GCM・`v2$` 書式）。BCL だけに依存し、ASP.NET Core を持たない CLI からも参照できる。**未公開（Issue #232。次の版から）**。`Core.Web` の `SecretProtector` は、これへ委譲する互換の型 |
 | `VehicleVision.PleasanterTools.Core.Cli` | CLI の共通部品（共通のオプション・出力・終了コードの合成・環境変数と API キーの読み取り・シェル補完）。[CLI の共通仕様書][cli-spec] |
 | `VehicleVision.PleasanterTools.Core.Web.Testing` | 試験用。管理画面の HTTP 契約の xUnit 基底クラス。C1〜C5 は 0.1.0 に含まれる。追加の安全性契約は未公開 |
 | `VehicleVision.PleasanterTools.Core.Cli.Testing` | 試験用。CLI の契約テストの xUnit 基底クラス（ヘルプ・エラーの ASCII、結果の出力先、終了コード表など）。各ツールが自分のテストで回す |
@@ -154,7 +155,7 @@ preview.14 までの API からは破壊的変更で、0.1.0 はその後の形�
 |---|---|---|
 | `new PasswordHasher()` | `v1$反復$塩$ハッシュ` の 32・64 バイト | 同じ書式の PBKDF2-HMAC-SHA512、210000 回・塩 16 バイト・ハッシュ 64 バイト |
 | `new TotpService()` | 空白と ASCII ハイフンを除いた 6 桁の ASCII 数字、前後 1 枠 | 20 バイトの Base32 共有鍵、要素別にエスケープした登録 URI |
-| `new SecretProtector(base64Key)` | 文脈つき `v1:`・`v2$`、文脈なしの旧 `v1$` | `Protect(plaintext, context)` による文脈必須の `v2$` のみ |
+| `new SecretProtector(base64Key)`（本体は `Core.Security`。`Core.Web` の同名の型は互換の委譲） | 文脈つき `v1:`・`v2$`、文脈なしの旧 `v1$` | `Protect(plaintext, context)` による文脈必須の `v2$` のみ |
 
 パスワードは空・null を生成時に拒否し、検証時は不一致にします。保存値の反復は符号・空白なしの正数、
 塩は非空です。照合成功時に、回数が現行未満かハッシュが 32 バイトなら `NeedsRehash` を返します。

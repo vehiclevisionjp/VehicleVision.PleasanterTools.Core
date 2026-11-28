@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>VehicleVision.PleasanterTools.Core.Security</PackageId>
+    <Description>VehicleVision.PleasanterTools 各ツール・各アプリ共通の秘密の暗号化（AES-256-GCM、v2$ 書式）。BCL だけに依存し、ASP.NET Core の共有フレームワークを必要としない。</Description>
+    <PackageTags>pleasanter;vehiclevision;security;encryption;aes-gcm</PackageTags>
+  </PropertyGroup>
+
+</Project>

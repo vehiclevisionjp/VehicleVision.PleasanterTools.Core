@@ -22,18 +22,19 @@ VERSION=$2
 PREFIX=VehicleVision.PleasanterTools.Core
 
 # 期待するパッケージの集合（ID の接尾辞。接頭辞は PREFIX）
-EXPECTED=(Mail Data Web Web.Testing Cli Contracts Cli.Testing)
+EXPECTED=(Mail Data Web Web.Testing Cli Contracts Cli.Testing Security)
 
 # 同じリポジトリのパッケージへの依存（接尾辞。依存先をカンマで並べる。無ければ空）。
 # Core.Data は Core.Cli を参照しない（_documents/コア化の方針.md）
 declare -A EXPECTED_INTERNAL_DEPS=(
     [Mail]=""
     [Data]=""
-    [Web]=""
+    [Web]="Security"
     [Web.Testing]=""
     [Contracts]=""
     [Cli]="Contracts"
     [Cli.Testing]="Cli,Contracts"
+    [Security]=""
 )
 
 fail=0
@@ -94,6 +95,16 @@ for s in "${EXPECTED[@]}"; do
         echo "$actual_deps"
     fi
 done
+
+# Core.Security は、CLI（ASP.NET Core を持たないプロセス）からも参照できることが存在理由。
+# 依存（パッケージ・フレームワーク）が 1 つでも入っていたら失敗にする
+security="$DIR/$PREFIX.Security.$VERSION.nupkg"
+if [ -f "$security" ]; then
+    security_nuspec=$(unzip -p "$security" '*.nuspec' | tr -d '')
+    if printf '%s' "$security_nuspec" | grep -Eq '<dependency |<frameworkReference'; then
+        error "$PREFIX.Security: 依存（パッケージ・フレームワーク）が入っている。BCL だけに依存すること"
+    fi
+fi
 
 if [ "$fail" -ne 0 ]; then
     exit 1

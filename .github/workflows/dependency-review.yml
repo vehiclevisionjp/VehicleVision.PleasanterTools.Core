@@ -46,5 +46,6 @@ jobs:
             pkg:nuget/VehicleVision.PleasanterTools.Core.Web.Testing,
             pkg:nuget/VehicleVision.PleasanterTools.Core.Contracts,
             pkg:nuget/VehicleVision.PleasanterTools.Core.Cli,
-            pkg:nuget/VehicleVision.PleasanterTools.Core.Cli.Testing
+            pkg:nuget/VehicleVision.PleasanterTools.Core.Cli.Testing,
+            pkg:nuget/VehicleVision.PleasanterTools.Core.Security
           comment-summary-in-pr: always
